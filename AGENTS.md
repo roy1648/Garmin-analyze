@@ -1,107 +1,56 @@
 # AGENTS.md
 
-## Scope
+## Project role
 
-These instructions apply to the entire repository.
+This is a personal Garmin Connect data ETL and analysis project.
+The goal is to import, normalize, validate, and analyze Garmin activity
+and health data for personal training review.
 
-This project is a personal Garmin TCX to AI-ready data converter. The current phase is specification-first. Do not add implementation code unless the user explicitly asks for implementation.
+If behavior or data contracts are unclear, read `docs/` before editing.
 
-## Required Reading
+## Engineering rules
 
-Before making changes, read the relevant spec documents:
+- Use Python 3.12+.
+- Follow PEP8.
+- Use type hints for all public functions.
+- Add English docstrings to all public functions.
+- Keep each line under 79 characters where practical.
+- Prefer small functions with clear input/output boundaries.
+- Do not add production dependencies without explaining why.
+- Do not store credentials, tokens, or raw personal data in Git.
 
-- `docs/00_project_brief.md`
-- `docs/01_requirements.md`
-- `docs/02_data_contract.md`
-- `docs/03_acceptance_tests.md`
-- `docs/04_architecture.md`
-- `docs/05_task_breakdown.md`
+## Testing rules
 
-For implementation tasks, treat `docs/02_data_contract.md` and `docs/03_acceptance_tests.md` as the primary source of truth.
+- Use pytest.
+- Add or update tests for every behavior change.
+- Network calls must be isolated behind interfaces.
+- Unit tests must not call Garmin Connect directly.
+- Use anonymized fixtures under `data/samples/`.
 
-## Project Constraints
+## Data safety rules
 
-- Keep the project maintainable by one developer.
-- Prefer simple modules and explicit data contracts.
-- Do not introduce heavy frameworks without explicit user approval.
-- Do not modify raw TCX files.
-- Treat GPS and health data as sensitive.
-- Keep MVP scope focused on Garmin Connect exported Running TCX files.
+- Never print Garmin passwords, tokens, or private raw data.
+- Never commit files under `data/raw/` or `data/processed/`.
+- Use `.env` only for local development and keep it ignored by Git.
+- Prefer token/cache storage outside the repository.
+- Treat GPS coordinates and health metrics as sensitive data.
+- Never modify raw TCX input files.
 
-## Python Standards
+## Scope boundaries
 
-Future Python code must follow:
+- MVP focuses on manually exported Garmin Connect Running TCX files.
+- Do not add Web UI, database storage, Garmin API login, or cloud sync
+  unless the user explicitly changes scope.
+- GarminDB and python-garminconnect may be discussed in docs or roadmap,
+  but must not be added as dependencies during MVP work.
+- Do not build a full AI coaching platform in MVP.
 
-- PEP8 style.
-- Type hints for public functions and data structures.
-- Docstrings for modules, classes, and public functions.
-- Clear variable and function names.
-- Small functions with focused responsibilities.
+## Done definition
 
-Avoid:
+A task is done only when:
 
-- One-letter variable names.
-- Hidden side effects.
-- Overly broad utility modules.
-- Premature abstractions.
-
-## Privacy Rules
-
-Raw TCX files are read-only inputs.
-
-Any work involving GPS or health data must preserve these guarantees:
-
-- The selected GPS policy is explicit.
-- AI-ready output records the GPS policy used.
-- No cloud upload is added without explicit user approval.
-- No direct AI API upload is added without explicit user approval.
-- No Garmin Connect authentication is added during MVP work.
-
-Supported GPS policies are:
-
-- `keep`
-- `remove`
-- `redact_start_end`
-
-The default policy is `keep`, but changes involving output must avoid accidental coordinate leaks when another policy is selected.
-
-## MVP Boundaries
-
-Do not add these in MVP implementation unless the user explicitly requests a scope change:
-
-- Web UI
-- Database storage
-- GarminDB dependency
-- python-garminconnect dependency
-- Garmin Connect login flow
-- Cloud sync
-- Multi-user support
-- Full AI coaching platform
-
-GarminDB and python-garminconnect may be referenced in documentation or future roadmap notes only.
-
-## Collaboration Workflow
-
-When asked to implement:
-
-1. Restate the concrete task briefly if useful.
-2. Inspect relevant files before editing.
-3. Make small, focused changes.
-4. Update docs when behavior or contracts change.
-5. Add or update tests when implementation exists.
-6. Run the narrowest useful validation first.
-7. Report changed files and validation results.
-
-Do not commit changes unless explicitly asked.
-
-## Documentation Style
-
-Documentation should be:
-
-- Practical for a solo developer.
-- Direct enough for Codex Agent handoff.
-- Specific about inputs, outputs, constraints, and done criteria.
-- Clear about MVP versus future roadmap.
-
-Avoid marketing language and vague platform claims.
+- Relevant tests pass.
+- Ruff or equivalent lint passes when configured.
+- The diff is small enough to review.
+- README or docs are updated if behavior changed.
 
