@@ -1,23 +1,23 @@
-# Architecture
+# 架構
 
-## 1. Design Principles
+## 1. 設計原則
 
-The project should remain small and maintainable by one developer.
+本專案應維持小型，並能由一位開發者維護。
 
-The MVP should avoid:
+MVP 應避免：
 
-- Heavy frameworks
+- 大型框架
 - Web UI
-- Database storage
-- Garmin Connect login
-- Garmin API integration
-- Direct AI API upload
+- 資料庫儲存
+- Garmin Connect 登入
+- Garmin API 整合
+- 直接上傳到 AI API
 
-These are not rejected permanently. They are deferred until the TCX conversion pipeline is stable.
+這些不是永久拒絕，而是延後到 TCX 轉換流程穩定之後再考慮。
 
-## 2. MVP Components
+## 2. MVP 元件
 
-Recommended future Python structure:
+建議的未來 Python 結構：
 
 ```text
 src/
@@ -34,44 +34,44 @@ tests/
   fixtures/
 ```
 
-This is a suggested implementation structure, not a requirement for the current documentation-only phase.
+這是建議的實作結構，不是目前純文件階段的要求。
 
-## 3. Component Responsibilities
+## 3. 元件職責
 
 ### 3.1 Parser
 
-Responsible for:
+負責：
 
-- Reading TCX XML.
-- Handling XML namespaces.
-- Extracting activity, lap, and trackpoint fields.
-- Extracting known Garmin extension fields.
-- Producing raw parsed objects or dictionaries.
+- 讀取 TCX XML。
+- 處理 XML namespaces。
+- 擷取 activity、lap 與 trackpoint 欄位。
+- 擷取已知 Garmin 擴充欄位。
+- 產生原始解析物件或 dictionaries。
 
-The parser should not:
+Parser 不應：
 
-- Write output files.
-- Apply AI summary logic.
-- Modify privacy policy.
+- 寫入輸出檔案。
+- 套用 AI 摘要邏輯。
+- 修改 privacy policy。
 
 ### 3.2 Normalizer
 
-Responsible for:
+負責：
 
-- Converting parsed TCX values into the internal data contract.
-- Normalizing units.
-- Calculating derived values such as pace.
-- Preserving missing values as `null` or empty cells later.
+- 將解析後的 TCX 值轉換成內部資料契約。
+- 正規化單位。
+- 計算衍生值，例如配速。
+- 保留缺漏值，稍後表示為 `null` 或空白儲存格。
 
 ### 3.3 Privacy
 
-Responsible for:
+負責：
 
-- Applying GPS policy.
-- Ensuring output records which GPS policy was used.
-- Avoiding accidental coordinate leaks in AI-ready summaries.
+- 套用 GPS policy。
+- 確保輸出記錄使用了哪一種 GPS policy。
+- 避免 AI-ready 摘要意外洩漏座標。
 
-Supported policies:
+支援的 policies：
 
 - `keep`
 - `remove`
@@ -79,47 +79,47 @@ Supported policies:
 
 ### 3.4 Exporters
 
-Responsible for producing:
+負責產生：
 
 - `activity.json`
 - `trackpoints.csv`
 - `ai_summary.json`
 - `ai_summary.md`
 
-Exporters should not parse TCX directly.
+Exporters 不應直接解析 TCX。
 
 ### 3.5 Summary Builder
 
-Responsible for:
+負責：
 
-- Key metrics.
-- Lap summary.
-- First-half versus second-half pace trend.
-- First-half versus second-half heart-rate trend.
-- Data quality notes.
-- Suggested AI analysis questions.
+- 關鍵指標。
+- 單圈摘要。
+- 前半段與後半段的配速趨勢。
+- 前半段與後半段的心率趨勢。
+- 資料品質說明。
+- 建議的 AI 分析問題。
 
-The summary builder should remain factual and avoid medical or professional coaching claims.
+Summary builder 應保持基於事實，並避免醫療或專業教練聲明。
 
 ### 3.6 Script Entrypoint
 
-The MVP may start with a simple script.
+MVP 可以從簡單 script 開始。
 
-Future command shape:
+未來指令形式：
 
 ```bash
 python scripts/convert_tcx.py --input data/raw/activity.tcx --output-dir data/processed --gps-policy keep
 ```
 
-Batch example:
+批次範例：
 
 ```bash
 python scripts/convert_tcx.py --input data/raw --output-dir data/processed --gps-policy keep
 ```
 
-The script should be designed so it can later evolve into a proper CLI without rewriting core logic.
+Script 應設計成未來可以演進為正式 CLI，而不需要重寫核心邏輯。
 
-## 4. Data Flow
+## 4. 資料流程
 
 ```text
 TCX file or folder
@@ -131,57 +131,58 @@ TCX file or folder
   -> JSON / CSV / Markdown exporters
 ```
 
-Raw TCX files are read-only throughout the flow.
+在整個流程中，原始 TCX 檔案都是唯讀。
 
-## 5. Dependency Strategy
+## 5. 依賴策略
 
-Start with the Python standard library when practical.
+可行時，先從 Python standard library 開始。
 
-Potential future dependencies:
+未來可能的依賴：
 
-- `pydantic` for stricter data models.
-- `pandas` for richer CSV or analysis workflows.
-- `typer` for a more polished CLI.
-- `pytest` for automated tests.
+- `pydantic`：用於更嚴格的資料模型。
+- `pandas`：用於更完整的 CSV 或分析工作流程。
+- `typer`：用於更完整的 CLI。
+- `pytest`：用於自動化測試。
 
-Dependencies should be added only when they reduce complexity rather than increase it.
+只有在依賴能降低複雜度，而不是增加複雜度時，才應加入。
 
-## 6. Future Architecture Options
+## 6. 未來架構選項
 
-### 6.1 Personal Database
+### 6.1 個人資料庫
 
-A future version may add a small SQLite database for:
+未來版本可以加入小型 SQLite 資料庫，用於：
 
-- Activity history
-- Trend analysis
-- Multi-activity comparison
-- Faster local queries
+- 活動歷史
+- 趨勢分析
+- 多活動比較
+- 更快的本機查詢
 
-This should be a separate phase after file-based conversion is stable.
+這應該是在檔案式轉換穩定後的獨立階段。
 
-### 6.2 GarminDB Research
+### 6.2 GarminDB 研究
 
-GarminDB may be evaluated as a future reference or integration path for Garmin data import, SQLite storage, analysis, and Jupyter-style workflows.
+GarminDB 未來可評估作為 Garmin 資料匯入、SQLite 儲存、分析與
+Jupyter-style 工作流程的參考或整合路徑。
 
-MVP must not depend on GarminDB.
+MVP 不得依賴 GarminDB。
 
-Reference:
+參考：
 
 - https://github.com/tcgoetz/GarminDB
 
-### 6.3 python-garminconnect Research
+### 6.3 python-garminconnect 研究
 
-python-garminconnect may be evaluated later for Garmin Connect API access, activity data, health data, historical data, and token workflows.
+python-garminconnect 未來可評估用於 Garmin Connect API 存取、活動資料、
+健康資料、歷史資料與 token 工作流程。
 
-MVP must not authenticate to Garmin Connect or depend on python-garminconnect.
+MVP 不得登入 Garmin Connect，也不得依賴 python-garminconnect。
 
-Reference:
+參考：
 
 - https://github.com/cyberjunky/python-garminconnect
 
 ### 6.4 Web UI
 
-A Web UI may be useful later, but it is outside the MVP.
+Web UI 未來可能有用，但不屬於 MVP。
 
-The file-based conversion pipeline should be completed before any UI work begins.
-
+任何 UI 工作開始前，應先完成檔案式轉換流程。

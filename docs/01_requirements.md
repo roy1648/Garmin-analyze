@@ -1,178 +1,177 @@
-# Requirements
+# 需求
 
-## 1. Functional Requirements
+## 1. 功能需求
 
-### 1.1 TCX Input
+### 1.1 TCX 輸入
 
-The tool must support:
+工具必須支援：
 
-- A single `.tcx` file as input.
-- A folder containing multiple `.tcx` files as input.
-- Ignoring or warning about non-TCX files in folder mode.
+- 單一 `.tcx` 檔案作為輸入。
+- 包含多個 `.tcx` 檔案的資料夾作為輸入。
+- 在資料夾模式中忽略非 TCX 檔案，或對其提出警告。
 
-The tool must not modify the original TCX files.
+工具不得修改原始 TCX 檔案。
 
-### 1.2 Activity Scope
+### 1.2 活動範圍
 
-The MVP must support Running activities.
+MVP 必須支援 Running 活動。
 
-If the input TCX contains another activity type:
+如果輸入 TCX 包含其他活動類型：
 
-- The tool should detect it when possible.
-- The tool should not silently treat it as Running.
-- The tool may skip it with a clear warning in MVP.
+- 工具應在可行時偵測出來。
+- 工具不應默默把它當成 Running 處理。
+- MVP 中可以略過該檔案，並給出清楚的警告。
 
-### 1.3 Parsed Data
+### 1.3 解析資料
 
-The tool should parse the following activity-level fields when available:
+可用時，工具應解析以下活動層級欄位：
 
-- Sport type
-- Activity ID or start time
-- Start time
-- Total time in seconds
-- Distance in meters
-- Calories
-- Average heart rate
-- Maximum heart rate
-- Maximum speed
+- 運動類型
+- 活動 ID 或開始時間
+- 開始時間
+- 總時間，單位為秒
+- 距離，單位為公尺
+- 卡路里
+- 平均心率
+- 最大心率
+- 最大速度
 
-The tool should parse the following lap-level fields when available:
+可用時，工具應解析以下單圈層級欄位：
 
-- Lap start time
-- Total time in seconds
-- Distance in meters
-- Calories
-- Average heart rate
-- Maximum heart rate
-- Maximum speed
-- Intensity
-- Trigger method
+- 單圈開始時間
+- 總時間，單位為秒
+- 距離，單位為公尺
+- 卡路里
+- 平均心率
+- 最大心率
+- 最大速度
+- 強度
+- 觸發方式
 
-The tool should parse the following trackpoint-level fields when available:
+可用時，工具應解析以下 trackpoint 層級欄位：
 
-- Timestamp
-- Latitude
-- Longitude
-- Altitude in meters
-- Distance in meters
-- Heart rate
-- Speed
-- Running cadence
-- Power
+- 時間戳記
+- 緯度
+- 經度
+- 海拔，單位為公尺
+- 距離，單位為公尺
+- 心率
+- 速度
+- 跑步步頻
+- 功率
 
-### 1.4 Output Formats
+### 1.4 輸出格式
 
-For each converted activity, the tool must produce:
+每個轉換後的活動，工具必須產生：
 
 - `activity.json`
 - `trackpoints.csv`
 - `ai_summary.json`
 - `ai_summary.md`
 
-In batch mode, each TCX file should produce its own output set.
+在批次模式中，每個 TCX 檔案都應產生自己的輸出檔案組。
 
-### 1.5 AI-ready Summary
+### 1.5 AI-ready 摘要
 
-The AI-ready summary must include:
+AI-ready 摘要必須包含：
 
-- Basic activity metadata
-- Distance
-- Duration
-- Average pace
-- Average heart rate
-- Maximum heart rate
-- Elevation summary
-- Lap summary
-- First-half versus second-half pace trend
-- First-half versus second-half heart-rate trend
-- GPS privacy policy used
-- Notes about missing data
+- 基本活動中繼資料
+- 距離
+- 持續時間
+- 平均配速
+- 平均心率
+- 最大心率
+- 海拔摘要
+- 單圈摘要
+- 前半段與後半段的配速趨勢
+- 前半段與後半段的心率趨勢
+- 使用的 GPS 隱私政策
+- 缺漏資料的說明
 
-The AI-ready summary must avoid making medical or professional coaching claims.
+AI-ready 摘要必須避免做出醫療或專業教練聲明。
 
-### 1.6 Missing Data
+### 1.6 缺漏資料
 
-If a standard field is missing:
+如果標準欄位缺漏：
 
-- JSON output should use `null`.
-- CSV output should leave the cell empty.
-- AI summary should mention missing data only when it affects interpretation.
+- JSON 輸出應使用 `null`。
+- CSV 輸出應保留空白儲存格。
+- AI 摘要只在缺漏資料影響解讀時提及。
 
-If an unknown or unsupported extension field appears:
+如果出現未知或不支援的擴充欄位：
 
-- The tool may skip it.
-- The tool should record a warning when practical.
-- The conversion should continue.
+- 工具可以略過該欄位。
+- 可行時，工具應記錄警告。
+- 轉換應繼續進行。
 
-## 2. Non-functional Requirements
+## 2. 非功能需求
 
-### 2.1 Maintainability
+### 2.1 可維護性
 
-The project must be maintainable by one developer.
+本專案必須能由一位開發者維護。
 
-Implementation should favor:
+實作應偏向：
 
-- Small modules
-- Clear function boundaries
-- Explicit data contracts
-- Minimal dependencies
-- No unnecessary framework
+- 小模組
+- 清楚的函式邊界
+- 明確的資料契約
+- 最少依賴
+- 不使用不必要的框架
 
-### 2.2 Python Standards
+### 2.2 Python 標準
 
-Future Python code must follow:
+未來 Python 程式碼必須遵循：
 
-- PEP8 style
-- Type hints for public functions and data structures
-- Docstrings for modules, classes, and public functions
-- Clear names; avoid one-letter variable names
+- PEP8 風格
+- 公開函式與資料結構要有 type hints
+- 模組、類別與公開函式要有 docstrings
+- 命名清楚；避免單字母變數名稱
 
-### 2.3 Local-first Data Handling
+### 2.3 本機優先的資料處理
 
-The tool must work locally.
+工具必須能在本機運作。
 
-The MVP must not:
+MVP 不得：
 
-- Upload data to cloud services.
-- Authenticate to Garmin Connect.
-- Store data in a database.
-- Send data directly to AI APIs.
+- 將資料上傳到雲端服務。
+- 向 Garmin Connect 進行驗證。
+- 將資料儲存在資料庫。
+- 直接將資料送到 AI APIs。
 
-### 2.4 Privacy
+### 2.4 隱私
 
-The tool must treat GPS and health data as sensitive.
+工具必須將 GPS 與健康資料視為敏感資料。
 
-Required privacy behavior:
+必要的隱私行為：
 
-- Raw TCX files are read-only inputs.
-- GPS policy is explicit and recorded in AI-ready outputs.
-- Heart rate, pace, and distance are preserved unless future settings say otherwise.
-- Documentation must explain the risk of sharing GPS and health data with AI applications.
+- 原始 TCX 檔案是唯讀輸入。
+- GPS policy 必須明確，並記錄在 AI-ready 輸出中。
+- 心率、配速與距離會保留，除非未來設定另有規定。
+- 文件必須說明與 AI 應用程式分享 GPS 與健康資料的風險。
 
-### 2.5 Error Handling
+### 2.5 錯誤處理
 
-Errors should be readable and actionable.
+錯誤訊息應可讀且可採取行動。
 
-The tool should distinguish:
+工具應區分：
 
-- File not found
-- Unsupported file type
-- Invalid XML
-- Valid TCX with unsupported activity type
-- Missing optional data
-- Output write failure
+- 找不到檔案
+- 不支援的檔案類型
+- 無效 XML
+- 有效 TCX，但活動類型不支援
+- 缺漏選填資料
+- 輸出寫入失敗
 
-## 3. MVP Boundaries
+## 3. MVP 邊界
 
-The MVP must not implement:
+MVP 不得實作：
 
 - Web UI
-- SQLite or other database
-- GarminDB integration
-- python-garminconnect integration
-- Garmin Connect login
-- NotebookLM or ChatGPT API upload
-- Full training recommendation engine
+- SQLite 或其他資料庫
+- GarminDB 整合
+- python-garminconnect 整合
+- Garmin Connect 登入
+- NotebookLM 或 ChatGPT API 上傳
+- 完整訓練建議引擎
 
-These may appear in roadmap documentation only.
-
+這些只能出現在路線圖文件中。

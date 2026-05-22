@@ -1,36 +1,36 @@
-# Data Contract
+# 資料契約
 
-## 1. Input Contract
+## 1. 輸入契約
 
-### 1.1 Supported Input
+### 1.1 支援的輸入
 
-Supported input:
+支援的輸入：
 
-- Garmin Connect exported `.tcx` files.
+- Garmin Connect 匯出的 `.tcx` 檔案。
 
-Supported activity type:
+支援的活動類型：
 
 - Running
 
-Input modes:
+輸入模式：
 
-- Single file path.
-- Folder path containing one or more `.tcx` files.
+- 單一檔案路徑。
+- 包含一個或多個 `.tcx` 檔案的資料夾路徑。
 
-### 1.2 TCX Parsing Expectations
+### 1.2 TCX 解析預期
 
-The parser should support:
+解析器應支援：
 
-- TCX XML namespaces.
-- `TrainingCenterDatabase`.
-- `Activities`.
-- `Activity`.
-- `Lap`.
-- `Track`.
-- `Trackpoint`.
-- Garmin extension fields when known and useful.
+- TCX XML namespaces。
+- `TrainingCenterDatabase`。
+- `Activities`。
+- `Activity`。
+- `Lap`。
+- `Track`。
+- `Trackpoint`。
+- 已知且有用的 Garmin 擴充欄位。
 
-Known Garmin extension fields may include:
+已知 Garmin 擴充欄位可能包含：
 
 - Speed
 - Run cadence
@@ -38,13 +38,13 @@ Known Garmin extension fields may include:
 - Average run cadence
 - Watts
 
-Unsupported extension fields may be skipped.
+不支援的擴充欄位可以略過。
 
-## 2. Output File Set
+## 2. 輸出檔案組
 
-Each source activity should produce a file set under the output directory.
+每個來源活動都應在輸出目錄下產生一組檔案。
 
-Recommended naming pattern:
+建議命名模式：
 
 ```text
 <activity_id>/
@@ -54,13 +54,13 @@ Recommended naming pattern:
   ai_summary.md
 ```
 
-If an activity ID is unavailable, use a safe filename derived from the source filename.
+如果無法取得活動 ID，請使用由來源檔名衍生出的安全檔名。
 
 ## 3. `activity.json`
 
-Purpose: full structured representation of one activity.
+用途：單一活動的完整結構化表示。
 
-Required top-level structure:
+必要的頂層結構：
 
 ```json
 {
@@ -91,13 +91,13 @@ Required top-level structure:
 }
 ```
 
-Allowed `gps_policy` values:
+允許的 `gps_policy` 值：
 
 - `keep`
 - `remove`
 - `redact_start_end`
 
-Default:
+預設值：
 
 - `keep`
 
@@ -117,11 +117,11 @@ Default:
 }
 ```
 
-Missing standard values should be `null`.
+缺漏的標準值應為 `null`。
 
 ### 3.4 `laps`
 
-Each lap object:
+每個 lap 物件：
 
 ```json
 {
@@ -140,7 +140,7 @@ Each lap object:
 
 ### 3.5 `trackpoints`
 
-Each trackpoint object:
+每個 trackpoint 物件：
 
 ```json
 {
@@ -159,13 +159,13 @@ Each trackpoint object:
 }
 ```
 
-GPS fields depend on `gps_policy`.
+GPS 欄位取決於 `gps_policy`。
 
 ## 4. `trackpoints.csv`
 
-Purpose: spreadsheet and data-analysis friendly trackpoint output.
+用途：適合試算表與資料分析的 trackpoint 輸出。
 
-Required columns:
+必要欄位：
 
 ```text
 activity_id
@@ -183,18 +183,18 @@ run_cadence_spm
 power_watts
 ```
 
-CSV rules:
+CSV 規則：
 
-- Use UTF-8.
-- Include header row.
-- Missing values should be empty cells.
-- GPS columns may be empty depending on `gps_policy`.
+- 使用 UTF-8。
+- 包含標題列。
+- 缺漏值應為空白儲存格。
+- GPS 欄位可能因 `gps_policy` 而為空。
 
 ## 5. `ai_summary.json`
 
-Purpose: compact, structured, AI-ready summary.
+用途：精簡、結構化、AI-ready 摘要。
 
-Required top-level structure:
+必要的頂層結構：
 
 ```json
 {
@@ -208,33 +208,33 @@ Required top-level structure:
 }
 ```
 
-### 5.1 Key Metrics
+### 5.1 關鍵指標
 
-MVP key metrics:
+MVP 關鍵指標：
 
-- Duration in minutes
-- Distance in kilometers
-- Average pace as seconds per kilometer
-- Average pace as `mm:ss/km`
-- Average heart rate
-- Maximum heart rate
-- Minimum elevation
-- Maximum elevation
-- Estimated elevation gain
-- Lap count
+- 持續時間，單位為分鐘
+- 距離，單位為公里
+- 平均配速，單位為每公里秒數
+- 平均配速，格式為 `mm:ss/km`
+- 平均心率
+- 最大心率
+- 最低海拔
+- 最高海拔
+- 估計爬升高度
+- 單圈數量
 
-### 5.2 Trend Summary
+### 5.2 趨勢摘要
 
-MVP trend fields:
+MVP 趨勢欄位：
 
-- First-half average pace
-- Second-half average pace
-- Pace trend
-- First-half average heart rate
-- Second-half average heart rate
-- Heart-rate trend
+- 前半段平均配速
+- 後半段平均配速
+- 配速趨勢
+- 前半段平均心率
+- 後半段平均心率
+- 心率趨勢
 
-Allowed simple trend labels:
+允許的簡單趨勢標籤：
 
 - `faster_later`
 - `slower_later`
@@ -243,9 +243,9 @@ Allowed simple trend labels:
 
 ## 6. `ai_summary.md`
 
-Purpose: primary handoff document for ChatGPT, Claude, NotebookLM, or similar AI tools.
+用途：交給 ChatGPT、Claude、NotebookLM 或類似 AI 工具的主要文件。
 
-Recommended sections:
+建議章節：
 
 ```markdown
 # Running Activity Summary
@@ -269,15 +269,14 @@ Recommended sections:
 ## Suggested AI Analysis Questions
 ```
 
-The Markdown should be concise, factual, and avoid pretending to be a certified coach or medical professional.
+Markdown 應該簡潔、基於事實，並避免假裝自己是認證教練或醫療專業人士。
 
-## 7. Privacy Contract
+## 7. 隱私契約
 
-GPS policy behavior:
+GPS policy 行為：
 
-- `keep`: keep latitude and longitude in JSON, CSV, and AI summaries where relevant.
-- `remove`: set latitude and longitude to `null` in JSON, empty in CSV, and omit route details from Markdown.
-- `redact_start_end`: remove or mask GPS coordinates near the beginning and end of the activity.
+- `keep`：在 JSON、CSV 以及相關 AI 摘要中保留緯度與經度。
+- `remove`：JSON 中將緯度與經度設為 `null`，CSV 中留空，Markdown 中省略路線細節。
+- `redact_start_end`：移除或遮蔽活動開頭與結尾附近的 GPS 座標。
 
-The output must record the selected GPS policy.
-
+輸出必須記錄所選的 GPS policy。

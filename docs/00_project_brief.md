@@ -1,96 +1,100 @@
-# Project Brief: Garmin TCX AI-ready Converter
+# 專案簡介：Garmin TCX AI-ready Converter
 
-## 1. Project Goal
+## 1. 專案目標
 
-Build a small, personal Python tool that converts Garmin Connect exported TCX files into AI-ready data formats for later running training analysis.
+建立一個小型、個人使用的 Python 工具，將 Garmin Connect 匯出的
+TCX 檔案轉換成適合 AI 後續分析跑步訓練資料的格式。
 
-The first version must focus on stable data conversion, not on building a complete AI coaching platform.
+第一版必須專注在穩定的資料轉換，而不是建立完整的 AI 教練平台。
 
-## 2. Context
+## 2. 背景
 
-The user manually exports TCX files from Garmin Connect. These files contain workout data such as:
+使用者會從 Garmin Connect 手動匯出 TCX 檔案。這些檔案包含訓練資料，
+例如：
 
-- Activity type
-- Start time and lap time
-- Distance
-- Heart rate
-- Pace and speed
-- Elevation
-- GPS coordinates
-- Garmin extension fields, such as running cadence, speed, and power when available
+- 活動類型
+- 開始時間與單圈時間
+- 距離
+- 心率
+- 配速與速度
+- 海拔
+- GPS 座標
+- Garmin 擴充欄位，例如可用時的跑步步頻、速度與功率
 
-TCX is XML-based and useful as an export format, but it is not ideal for direct AI consumption. The project should transform TCX into formats that are easier for ChatGPT, Claude, NotebookLM, and future local analysis tools to read.
+TCX 是以 XML 為基礎的格式，適合作為匯出格式，但不適合讓 AI 直接讀取。
+本專案應該把 TCX 轉換成更容易讓 ChatGPT、Claude、NotebookLM，以及
+未來本機分析工具讀取的格式。
 
-## 3. Primary User
+## 3. 主要使用者
 
-The primary user is a solo developer building a personal workflow.
+主要使用者是一位獨立開發者，正在建立個人工作流程。
 
-This project should therefore optimize for:
+因此本專案應該優先考量：
 
-- Simple structure
-- Low maintenance cost
-- Clear files and contracts
-- Easy Codex Agent collaboration
-- Local-first data handling
-- Avoiding premature platform design
+- 簡單的結構
+- 低維護成本
+- 清楚的檔案與契約
+- 容易與 Codex Agent 協作
+- 以本機資料處理為優先
+- 避免過早設計成平台
 
-## 4. MVP Scope
+## 4. MVP 範圍
 
-The MVP supports:
+MVP 支援：
 
-- Garmin Connect exported `.tcx` files
-- Running activities only
-- Single-file conversion
-- Folder-based batch conversion
-- Conversion into AI-readable and machine-readable output
-- Configurable GPS privacy behavior
+- Garmin Connect 匯出的 `.tcx` 檔案
+- 只支援跑步活動
+- 單一檔案轉換
+- 以資料夾為單位的批次轉換
+- 轉換成 AI 可讀與機器可讀的輸出
+- 可設定的 GPS 隱私處理方式
 
-The MVP does not include:
+MVP 不包含：
 
 - Web UI
-- Database storage
-- Garmin account login
-- Garmin API integration
-- Cloud sync
-- Multi-user support
-- Full AI coaching or medical-grade training advice
+- 資料庫儲存
+- Garmin 帳號登入
+- Garmin API 整合
+- 雲端同步
+- 多使用者支援
+- 完整 AI 教練或醫療等級訓練建議
 
-## 5. AI-ready Output Strategy
+## 5. AI-ready 輸出策略
 
-The primary AI-ready output should combine:
+主要的 AI-ready 輸出應結合：
 
-- Markdown for human and AI readability
-- JSON for structure, validation, and future programmatic workflows
+- Markdown，方便人類與 AI 閱讀
+- JSON，方便結構化、驗證與未來程式化工作流程使用
 
-CSV remains useful for spreadsheet-style analysis but is not the primary AI handoff format.
+CSV 仍然適合試算表形式的分析，但不是主要的 AI 交付格式。
 
-## 6. Privacy Position
+## 6. 隱私立場
 
-Garmin activity data may contain sensitive health and location information.
+Garmin 活動資料可能包含敏感的健康與位置資訊。
 
-For the MVP:
+對 MVP 而言：
 
-- Raw TCX files must never be modified.
-- Heart rate, pace, and distance are preserved in output.
-- GPS coordinates are preserved by default because the selected default policy is `keep`.
-- The tool must still support a GPS policy parameter so the user can choose safer output modes.
-- AI-ready output must explicitly state which GPS policy was used.
+- 原始 TCX 檔案絕不能被修改。
+- 心率、配速與距離會保留在輸出中。
+- GPS 座標預設會保留，因為選定的預設政策是 `keep`。
+- 工具仍必須支援 GPS policy 參數，讓使用者能選擇更安全的輸出模式。
+- AI-ready 輸出必須明確記錄使用了哪一種 GPS policy。
 
-Supported GPS policies:
+支援的 GPS policies：
 
-- `keep`: preserve all GPS coordinates.
-- `remove`: remove all GPS coordinates from AI-ready outputs.
-- `redact_start_end`: remove or mask the beginning and ending parts of the route.
+- `keep`：保留所有 GPS 座標。
+- `remove`：從 AI-ready 輸出移除所有 GPS 座標。
+- `redact_start_end`：移除或遮蔽路線開頭與結尾部分。
 
-## 7. Future Roadmap
+## 7. 未來路線圖
 
-The first version should not implement database or API integrations, but the architecture should leave room for them.
+第一版不應實作資料庫或 API 整合，但架構應保留未來擴充空間。
 
-Future candidates:
+未來候選方向：
 
-- A small personal SQLite activity database.
+- 小型個人 SQLite 活動資料庫。
 - GarminDB: https://github.com/tcgoetz/GarminDB
 - python-garminconnect: https://github.com/cyberjunky/python-garminconnect
 
-These are research and extension paths only. They must not affect the MVP requirement that manually exported TCX files remain the first supported input source.
-
+這些只是研究與擴充路徑。它們不能影響 MVP 的要求：手動匯出的 TCX 檔案
+仍然必須是第一個支援的輸入來源。

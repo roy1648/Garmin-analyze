@@ -1,151 +1,150 @@
-# Acceptance Tests
+# 驗收測試
 
-This document defines behavior-level acceptance tests. It does not contain test code.
+本文件定義行為層級的驗收測試，不包含測試程式碼。
 
-## 1. Single TCX Conversion
+## 1. 單一 TCX 轉換
 
-Given a valid Garmin Connect Running TCX file  
-When the user converts the file  
-Then the output directory contains:
+前提：有一個有效的 Garmin Connect Running TCX 檔案  
+當：使用者轉換該檔案  
+則：輸出目錄包含：
 
 - `activity.json`
 - `trackpoints.csv`
 - `ai_summary.json`
 - `ai_summary.md`
 
-And the original TCX file is not modified.
+而且：原始 TCX 檔案沒有被修改。
 
-## 2. Folder Batch Conversion
+## 2. 資料夾批次轉換
 
-Given a folder containing multiple `.tcx` files  
-When the user converts the folder  
-Then each valid Running TCX file produces one output file set.
+前提：有一個包含多個 `.tcx` 檔案的資料夾  
+當：使用者轉換該資料夾  
+則：每個有效的 Running TCX 檔案都會產生一組輸出檔案。
 
-And non-TCX files are skipped or warned about without stopping the batch.
+而且：非 TCX 檔案會被略過或提出警告，不會中止整個批次。
 
-## 3. Running Activity Only
+## 3. 只處理 Running 活動
 
-Given a valid TCX file with sport type `Running`  
-When the user converts the file  
-Then the file is processed.
+前提：有一個 sport type 為 `Running` 的有效 TCX 檔案  
+當：使用者轉換該檔案  
+則：該檔案會被處理。
 
-Given a valid TCX file with another sport type  
-When the user converts the file  
-Then the file is skipped or rejected with a clear unsupported activity warning.
+前提：有一個其他 sport type 的有效 TCX 檔案  
+當：使用者轉換該檔案  
+則：該檔案會被略過或拒絕，並顯示清楚的不支援活動警告。
 
-## 4. Missing Heart Rate
+## 4. 缺少心率
 
-Given a Running TCX file without heart-rate data  
-When the user converts the file  
-Then:
+前提：有一個沒有心率資料的 Running TCX 檔案  
+當：使用者轉換該檔案  
+則：
 
-- JSON heart-rate fields are `null`.
-- CSV heart-rate cells are empty.
-- AI summary includes a data quality note if heart-rate trend cannot be calculated.
-- Conversion does not fail.
+- JSON 心率欄位為 `null`。
+- CSV 心率儲存格為空。
+- 如果無法計算心率趨勢，AI 摘要包含資料品質說明。
+- 轉換不會失敗。
 
-## 5. Missing GPS
+## 5. 缺少 GPS
 
-Given a Running TCX file without GPS coordinates  
-When the user converts the file  
-Then:
+前提：有一個沒有 GPS 座標的 Running TCX 檔案  
+當：使用者轉換該檔案  
+則：
 
-- JSON latitude and longitude fields are `null`.
-- CSV latitude and longitude cells are empty.
-- AI summary states that route analysis is unavailable.
-- Conversion does not fail.
+- JSON 緯度與經度欄位為 `null`。
+- CSV 緯度與經度儲存格為空。
+- AI 摘要說明無法進行路線分析。
+- 轉換不會失敗。
 
-## 6. Missing Elevation
+## 6. 缺少海拔
 
-Given a Running TCX file without elevation data  
-When the user converts the file  
-Then:
+前提：有一個沒有海拔資料的 Running TCX 檔案  
+當：使用者轉換該檔案  
+則：
 
-- Elevation fields are `null` or empty.
-- Elevation gain is `null`.
-- AI summary includes an elevation data quality note.
-- Conversion does not fail.
+- 海拔欄位為 `null` 或空白。
+- 爬升高度為 `null`。
+- AI 摘要包含海拔資料品質說明。
+- 轉換不會失敗。
 
-## 7. Multi-lap Activity
+## 7. 多圈活動
 
-Given a Running TCX file with multiple laps  
-When the user converts the file  
-Then:
+前提：有一個包含多個 laps 的 Running TCX 檔案  
+當：使用者轉換該檔案  
+則：
 
-- `activity.json` contains all laps in order.
-- `ai_summary.json` contains lap summaries.
-- `ai_summary.md` presents lap summaries clearly.
+- `activity.json` 依序包含所有 laps。
+- `ai_summary.json` 包含 lap summaries。
+- `ai_summary.md` 清楚呈現 lap summaries。
 
-## 8. Invalid XML
+## 8. 無效 XML
 
-Given a malformed XML file with `.tcx` extension  
-When the user converts the file  
-Then:
+前提：有一個副檔名為 `.tcx` 的 malformed XML 檔案  
+當：使用者轉換該檔案  
+則：
 
-- The tool reports an invalid XML error.
-- No misleading partial output is produced for that file.
-- Batch mode continues to the next file when possible.
+- 工具回報 invalid XML 錯誤。
+- 不會為該檔案產生誤導性的部分輸出。
+- 可行時，批次模式會繼續處理下一個檔案。
 
 ## 9. GPS Policy: keep
 
-Given a Running TCX file with GPS data  
-And GPS policy is `keep`  
-When the user converts the file  
-Then:
+前提：有一個包含 GPS 資料的 Running TCX 檔案  
+而且：GPS policy 是 `keep`  
+當：使用者轉換該檔案  
+則：
 
-- Latitude and longitude are present in `activity.json`.
-- Latitude and longitude are present in `trackpoints.csv`.
-- `ai_summary.json` records `gps_policy` as `keep`.
-- `ai_summary.md` includes a privacy note that GPS was preserved.
+- `activity.json` 中有緯度與經度。
+- `trackpoints.csv` 中有緯度與經度。
+- `ai_summary.json` 將 `gps_policy` 記錄為 `keep`。
+- `ai_summary.md` 包含說明 GPS 已保留的隱私備註。
 
 ## 10. GPS Policy: remove
 
-Given a Running TCX file with GPS data  
-And GPS policy is `remove`  
-When the user converts the file  
-Then:
+前提：有一個包含 GPS 資料的 Running TCX 檔案  
+而且：GPS policy 是 `remove`  
+當：使用者轉換該檔案  
+則：
 
-- Latitude and longitude are removed or set to `null` in JSON.
-- Latitude and longitude cells are empty in CSV.
-- AI summaries do not expose coordinates.
-- `ai_summary.json` records `gps_policy` as `remove`.
+- JSON 中的緯度與經度被移除或設為 `null`。
+- CSV 中的緯度與經度儲存格為空。
+- AI 摘要不暴露座標。
+- `ai_summary.json` 將 `gps_policy` 記錄為 `remove`。
 
 ## 11. GPS Policy: redact_start_end
 
-Given a Running TCX file with GPS data  
-And GPS policy is `redact_start_end`  
-When the user converts the file  
-Then:
+前提：有一個包含 GPS 資料的 Running TCX 檔案  
+而且：GPS policy 是 `redact_start_end`  
+當：使用者轉換該檔案  
+則：
 
-- GPS coordinates near the beginning and end of the activity are removed or masked.
-- Mid-route GPS coordinates may remain.
-- AI summaries record that start and end route data was redacted.
+- 活動開頭與結尾附近的 GPS 座標會被移除或遮蔽。
+- 路線中段的 GPS 座標可以保留。
+- AI 摘要記錄起點與終點路線資料已被遮蔽。
 
 ## 12. AI-ready Markdown
 
-Given a successful conversion  
-When `ai_summary.md` is opened  
-Then it contains:
+前提：有一次成功轉換  
+當：開啟 `ai_summary.md`  
+則：內容包含：
 
-- Activity summary
-- Key metrics
-- Lap summary
-- Pace trend
-- Heart-rate trend
-- Elevation summary
-- Data quality notes
-- Privacy notes
-- Suggested AI analysis questions
+- 活動摘要
+- 關鍵指標
+- 單圈摘要
+- 配速趨勢
+- 心率趨勢
+- 海拔摘要
+- 資料品質說明
+- 隱私備註
+- 建議的 AI 分析問題
 
-## 13. Done Criteria
+## 13. 完成條件
 
-The MVP is done when:
+MVP 完成的條件：
 
-- Valid Running TCX files convert successfully.
-- Single-file and folder modes are supported.
-- All four output formats are produced.
-- Missing optional fields do not break conversion.
-- GPS policy is implemented and recorded.
-- Original TCX files are never modified.
-- Acceptance scenarios above can be mapped directly to pytest tests.
-
+- 有效的 Running TCX 檔案能成功轉換。
+- 支援單一檔案與資料夾模式。
+- 會產生四種輸出格式。
+- 缺漏選填欄位不會造成轉換失敗。
+- GPS policy 已實作並記錄。
+- 原始 TCX 檔案永遠不會被修改。
+- 上述驗收情境可以直接對應到 pytest 測試。

@@ -1,252 +1,252 @@
-# Task Breakdown
+# 任務拆解
 
-This document breaks future implementation into small tasks suitable for solo development and Codex Agent collaboration.
+本文件將未來實作拆成適合個人開發與 Codex Agent 協作的小任務。
 
-No task in this document should be interpreted as permission to overbuild beyond the MVP.
+本文件中的任何任務，都不應被解讀為可以超出 MVP 範圍過度建置。
 
-## Phase 1: Project Skeleton
+## 階段 1：專案骨架
 
-Goal:
+目標：
 
-- Create a minimal Python project structure.
+- 建立最小 Python 專案結構。
 
-Inputs:
+輸入：
 
-- Existing specification files.
+- 現有規格文件。
 
-Outputs:
+輸出：
 
-- Source folder.
-- Script folder.
-- Test folder.
-- README update.
+- Source folder。
+- Script folder。
+- Test folder。
+- README 更新。
 
-Done when:
+完成條件：
 
-- The project has a clear place for parser, models, exporters, summaries, and tests.
-- No TCX conversion logic is required yet.
+- 專案中已有清楚位置可放 parser、models、exporters、summaries 與 tests。
+- 此階段尚不需要 TCX 轉換邏輯。
 
-## Phase 2: Fixture Management
+## 階段 2：Fixture 管理
 
-Goal:
+目標：
 
-- Establish safe test fixture handling.
+- 建立安全的測試 fixture 處理方式。
 
-Inputs:
+輸入：
 
-- Local Garmin TCX examples.
+- 本機 Garmin TCX 範例。
 
-Outputs:
+輸出：
 
-- A sanitized or minimal TCX fixture for tests.
-- Clear rule that raw personal TCX files are not modified.
+- 用於測試的 sanitized 或 minimal TCX fixture。
+- 明確規則：原始個人 TCX 檔案不得被修改。
 
-Done when:
+完成條件：
 
-- Tests can be written without exposing unnecessary personal GPS or health data.
+- 可以撰寫測試，而不暴露不必要的個人 GPS 或健康資料。
 
-## Phase 3: TCX Parser
+## 階段 3：TCX Parser
 
-Goal:
+目標：
 
-- Parse Running TCX files into raw structured data.
+- 將 Running TCX 檔案解析為原始結構化資料。
 
-Inputs:
+輸入：
 
-- `.tcx` file path.
+- `.tcx` 檔案路徑。
 
-Outputs:
+輸出：
 
-- Parsed activity, lap, and trackpoint data.
-- Warnings for skipped or missing optional fields.
+- 已解析的 activity、lap 與 trackpoint 資料。
+- 對被略過或缺漏的選填欄位提出 warnings。
 
-Done when:
+完成條件：
 
-- Running activity fields can be read.
-- Lap and trackpoint collections preserve order.
-- Invalid XML produces a readable error.
+- 可以讀取 Running 活動欄位。
+- Lap 與 trackpoint collections 保留原始順序。
+- 無效 XML 會產生可讀的錯誤。
 
-## Phase 4: Data Models
+## 階段 4：資料模型
 
-Goal:
+目標：
 
-- Define internal activity, lap, trackpoint, privacy, and warning structures.
+- 定義內部 activity、lap、trackpoint、privacy 與 warning 結構。
 
-Inputs:
+輸入：
 
-- Parser output.
+- Parser 輸出。
 
-Outputs:
+輸出：
 
-- Normalized internal data structures.
+- 正規化後的內部資料結構。
 
-Done when:
+完成條件：
 
-- Missing standard fields can be represented as `None`.
-- Public structures use type hints.
-- Data names match `docs/02_data_contract.md`.
+- 缺漏的標準欄位可以表示為 `None`。
+- 公開結構使用 type hints。
+- 資料名稱符合 `docs/02_data_contract.md`。
 
-## Phase 5: JSON Exporter
+## 階段 5：JSON Exporter
 
-Goal:
+目標：
 
-- Write `activity.json`.
+- 寫出 `activity.json`。
 
-Inputs:
+輸入：
 
-- Normalized activity data.
+- 正規化活動資料。
 
-Outputs:
+輸出：
 
-- JSON following the data contract.
+- 符合資料契約的 JSON。
 
-Done when:
+完成條件：
 
-- Output includes `source`, `privacy`, `activity`, `laps`, `trackpoints`, and `warnings`.
-- Missing values are represented as `null`.
+- 輸出包含 `source`、`privacy`、`activity`、`laps`、`trackpoints`
+  與 `warnings`。
+- 缺漏值表示為 `null`。
 
-## Phase 6: CSV Exporter
+## 階段 6：CSV Exporter
 
-Goal:
+目標：
 
-- Write `trackpoints.csv`.
+- 寫出 `trackpoints.csv`。
 
-Inputs:
+輸入：
 
-- Normalized trackpoint data.
+- 正規化 trackpoint 資料。
 
-Outputs:
+輸出：
 
-- UTF-8 CSV with required header row.
+- 含必要標題列的 UTF-8 CSV。
 
-Done when:
+完成條件：
 
-- Required columns match `docs/02_data_contract.md`.
-- Missing values become empty cells.
+- 必要欄位符合 `docs/02_data_contract.md`。
+- 缺漏值變成空白儲存格。
 
-## Phase 7: AI Summary Builder
+## 階段 7：AI Summary Builder
 
-Goal:
+目標：
 
-- Create `ai_summary.json` and `ai_summary.md`.
+- 建立 `ai_summary.json` 與 `ai_summary.md`。
 
-Inputs:
+輸入：
 
-- Normalized activity data.
+- 正規化活動資料。
 
-Outputs:
+輸出：
 
-- Structured summary JSON.
-- Concise Markdown summary.
+- 結構化 summary JSON。
+- 簡潔 Markdown summary。
 
-Done when:
+完成條件：
 
-- Key metrics are present.
-- Lap summary is present.
-- First-half and second-half pace trend is present when possible.
-- First-half and second-half heart-rate trend is present when possible.
-- Data quality and privacy notes are present.
+- 關鍵指標存在。
+- 單圈摘要存在。
+- 可行時，存在前半段與後半段配速趨勢。
+- 可行時，存在前半段與後半段心率趨勢。
+- 存在資料品質與隱私備註。
 
-## Phase 8: Batch Processing
+## 階段 8：批次處理
 
-Goal:
+目標：
 
-- Convert all TCX files in a folder.
+- 轉換資料夾中的所有 TCX 檔案。
 
-Inputs:
+輸入：
 
-- Folder path.
+- 資料夾路徑。
 
-Outputs:
+輸出：
 
-- One output file set per valid Running TCX.
-- Warnings for skipped files.
+- 每個有效 Running TCX 都有一組輸出檔案。
+- 對被略過的檔案提出 warnings。
 
-Done when:
+完成條件：
 
-- A bad file does not stop the whole batch when continuation is possible.
+- 可行時，單一壞檔案不會中止整個批次。
 
-## Phase 9: Acceptance Tests
+## 階段 9：驗收測試
 
-Goal:
+目標：
 
-- Translate `docs/03_acceptance_tests.md` into automated tests.
+- 將 `docs/03_acceptance_tests.md` 轉換成自動化測試。
 
-Inputs:
+輸入：
 
-- Fixtures.
-- Conversion code.
+- Fixtures。
+- 轉換程式碼。
 
-Outputs:
+輸出：
 
-- pytest test suite.
+- pytest test suite。
 
-Done when:
+完成條件：
 
-- Key success and failure scenarios are covered.
-- Tests confirm raw TCX files are not modified.
+- 覆蓋主要成功與失敗情境。
+- 測試確認原始 TCX 檔案不會被修改。
 
-## Phase 10: README
+## 階段 10：README
 
-Goal:
+目標：
 
-- Document how to use the MVP.
+- 說明如何使用 MVP。
 
-Inputs:
+輸入：
 
-- Working conversion script.
+- 可運作的轉換 script。
 
-Outputs:
+輸出：
 
-- README with setup, usage, examples, privacy warning, and known limitations.
+- README，包含 setup、usage、examples、privacy warning 與 known limitations。
 
-Done when:
+完成條件：
 
-- A future user can run single-file and folder conversion from the README.
+- 未來使用者可以根據 README 執行單一檔案與資料夾轉換。
 
-## Future Tasks
+## 未來任務
 
-These tasks are intentionally outside the MVP.
+這些任務刻意排除在 MVP 之外。
 
 ### SQLite Activity Store
 
-Research and design a personal SQLite database for multi-activity history and trend analysis.
+研究並設計個人 SQLite 資料庫，用於多活動歷史與趨勢分析。
 
-Do not start until file-based conversion is stable.
+在檔案式轉換穩定前，不要開始。
 
-### GarminDB Research
+### GarminDB 研究
 
-Evaluate GarminDB as a reference or possible integration path.
+評估 GarminDB 作為參考或可能整合路徑。
 
-Research questions:
+研究問題：
 
-- Does it duplicate or replace the local TCX parser?
-- Can it help with SQLite activity history?
-- Does it add too much operational complexity for a solo project?
+- 它是否會重複或取代本機 TCX parser？
+- 它能否協助 SQLite 活動歷史？
+- 對個人專案而言，它是否增加太多操作複雜度？
 
-Reference:
+參考：
 
 - https://github.com/tcgoetz/GarminDB
 
-### python-garminconnect Research
+### python-garminconnect 研究
 
-Evaluate python-garminconnect for future Garmin Connect API access.
+評估 python-garminconnect 供未來 Garmin Connect API 存取使用。
 
-Research questions:
+研究問題：
 
-- What authentication and token handling are required?
-- Which activity and health endpoints are useful?
-- What privacy and reliability risks does API access introduce?
+- 需要哪些 authentication 與 token handling？
+- 哪些 activity 與 health endpoints 有用？
+- API 存取會帶來哪些 privacy 與 reliability 風險？
 
-Reference:
+參考：
 
 - https://github.com/cyberjunky/python-garminconnect
 
 ### Web UI
 
-Consider only after:
+只在以下條件成立後再考慮：
 
-- TCX conversion is stable.
-- Output contracts are proven useful.
-- The user has repeated workflows that justify UI investment.
-
+- TCX 轉換穩定。
+- 輸出契約已證明有用。
+- 使用者有重複工作流程，足以支持 UI 投資。
