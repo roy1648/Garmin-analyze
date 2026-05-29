@@ -4,5 +4,9 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"python.defaultInterpreterPath": "C:\\Users\\roy\\miniforge3\\envs\\garmin-tcx-ai\\python.exe",
+		"python.terminal.activateEnvironment": true,
+		"python.condaPath": "C:\\Users\\roy\\miniforge3\\Scripts\\conda.exe"
+	}
 }
