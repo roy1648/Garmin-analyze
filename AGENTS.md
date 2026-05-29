@@ -25,7 +25,9 @@ If behavior or data contracts are unclear, read `docs/` before editing.
 - Add or update tests for every behavior change.
 - Network calls must be isolated behind interfaces.
 - Unit tests must not call Garmin Connect directly.
-- Use anonymized fixtures under `data/samples/`.
+- Use committed minimal sanitized fixtures under `tests/fixtures/`.
+- Keep optional local samples under `data/samples/`, ignored by Git.
+- Tests must not depend on private local samples.
 
 ## Data safety rules
 
@@ -51,6 +53,6 @@ A task is done only when:
 
 - Relevant tests pass.
 - Ruff or equivalent lint passes when configured.
+- Documentation-only changes do not require test implementation.
 - The diff is small enough to review.
 - README or docs are updated if behavior changed.
-

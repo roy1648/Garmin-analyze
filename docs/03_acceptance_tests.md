@@ -117,11 +117,58 @@
 當：使用者轉換該檔案  
 則：
 
-- 活動開頭與結尾附近的 GPS 座標會被移除或遮蔽。
-- 路線中段的 GPS 座標可以保留。
+- 前 300 公尺與後 300 公尺的 GPS 座標會被遮蔽。
+- 距離資料不足時，前 10% 與後 10% trackpoints 的 GPS 座標會被遮蔽。
+- 如果活動太短，無法保留中段座標，所有 GPS 座標都會被遮蔽。
 - AI 摘要記錄起點與終點路線資料已被遮蔽。
 
-## 12. AI-ready Markdown
+## 12. 輸出資料夾安全命名
+
+前提：活動 ID 包含 path-unsafe characters  
+當：使用者轉換該檔案  
+則：
+
+- 輸出資料夾使用 `safe_activity_id`。
+- 原始 `activity_id` 仍保留在輸出 JSON 欄位中。
+- 不安全字元會被替換，不會建立巢狀或非法路徑。
+
+## 13. Warning schema
+
+前提：轉換期間發現缺漏選填欄位或略過檔案  
+當：工具記錄 warning  
+則：warning 物件包含：
+
+- `code`
+- `severity`
+- `field`
+- `message`
+- `source_file`
+
+## 14. CLI exit codes
+
+前提：所有輸入檔案成功轉換  
+當：CLI 結束  
+則：exit code 為 `0`。
+
+前提：批次處理完成，但至少一個檔案失敗或被略過  
+當：CLI 結束  
+則：exit code 為 `1`。
+
+前提：轉換開始前發生使用者、設定或輸入錯誤  
+當：CLI 結束  
+則：exit code 為 `2`。
+
+## 15. 趨勢計算
+
+前提：Running TCX 有足夠的距離、時間與 trackpoint 資料  
+當：工具產生 AI-ready summary  
+則：前半段與後半段趨勢以累積距離切分。
+
+前提：距離、時間或 trackpoint 資料不足  
+當：工具產生 AI-ready summary  
+則：受影響的趨勢欄位為 `insufficient_data`。
+
+## 16. AI-ready Markdown
 
 前提：有一次成功轉換  
 當：開啟 `ai_summary.md`  
@@ -137,7 +184,7 @@
 - 隱私備註
 - 建議的 AI 分析問題
 
-## 13. 完成條件
+## 17. 完成條件
 
 MVP 完成的條件：
 

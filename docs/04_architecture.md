@@ -70,6 +70,8 @@ Parser 不應：
 - 套用 GPS policy。
 - 確保輸出記錄使用了哪一種 GPS policy。
 - 避免 AI-ready 摘要意外洩漏座標。
+- 對 `redact_start_end` 先使用距離遮蔽前後各 300 公尺，距離資料不足
+  時才 fallback 到前後各 10% trackpoints。
 
 支援的 policies：
 
@@ -87,6 +89,10 @@ Parser 不應：
 - `ai_summary.md`
 
 Exporters 不應直接解析 TCX。
+
+輸出資料夾必須使用 `safe_activity_id`，不得直接使用原始
+`activity_id`。`safe_activity_id` 應將 path-unsafe characters 替換成
+`_`。
 
 ### 3.5 Summary Builder
 
@@ -118,6 +124,12 @@ python scripts/convert_tcx.py --input data/raw --output-dir data/processed --gps
 ```
 
 Script 應設計成未來可以演進為正式 CLI，而不需要重寫核心邏輯。
+
+Exit code 慣例：
+
+- `0`：所有轉換都成功。
+- `1`：批次已完成，但至少一個檔案失敗或被略過。
+- `2`：轉換開始前發生使用者、設定或輸入錯誤。
 
 ## 4. 資料流程
 

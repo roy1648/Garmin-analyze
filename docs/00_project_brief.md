@@ -84,7 +84,8 @@ Garmin 活動資料可能包含敏感的健康與位置資訊。
 
 - `keep`：保留所有 GPS 座標。
 - `remove`：從 AI-ready 輸出移除所有 GPS 座標。
-- `redact_start_end`：移除或遮蔽路線開頭與結尾部分。
+- `redact_start_end`：遮蔽路線前 300 公尺與後 300 公尺的
+  GPS 座標；距離資料不足時，改用前 10% 與後 10% trackpoints。
 
 ## 7. 未來路線圖
 

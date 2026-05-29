@@ -47,14 +47,20 @@
 建議命名模式：
 
 ```text
-<activity_id>/
+<safe_activity_id>/
   activity.json
   trackpoints.csv
   ai_summary.json
   ai_summary.md
 ```
 
-如果無法取得活動 ID，請使用由來源檔名衍生出的安全檔名。
+`safe_activity_id` 必須由 `activity_id` 或來源檔名衍生。不得直接使用
+原始 `activity_id` 作為資料夾名稱。產生規則：
+
+- 將 path-unsafe characters 換成 `_`。
+- 至少包含 Windows 與 POSIX 不安全字元：`< > : " / \ | ? *`。
+- 去除前後空白與結尾的 `.`。
+- 若結果為空，使用由來源檔名衍生出的安全檔名。
 
 ## 3. `activity.json`
 
@@ -72,6 +78,22 @@
   "warnings": []
 }
 ```
+
+`warnings` 中每個物件必須符合以下 schema：
+
+```json
+{
+  "code": "missing_optional_field",
+  "severity": "warning",
+  "field": "heart_rate_bpm",
+  "message": "Heart rate is not available in the source file.",
+  "source_file": "activity.tcx"
+}
+```
+
+`severity` 可先使用 `info`、`warning` 或 `error`。
+`field` 應填入受影響欄位；若 warning 是整個檔案層級，則使用 `null`。
+`source_file` 應使用來源檔名，不應包含私人本機完整路徑。
 
 ### 3.1 `source`
 
@@ -241,6 +263,15 @@ MVP 趨勢欄位：
 - `stable`
 - `insufficient_data`
 
+趨勢計算規則：
+
+- 可行時，以累積距離切分前半段與後半段。
+- 前半段代表 0% 到 50% 距離；後半段代表 50% 到 100% 距離。
+- 配速趨勢需要足夠的距離與時間資料。
+- 心率趨勢需要足夠的心率與 trackpoint 資料。
+- 距離、時間或 trackpoint 資料不足時，相關趨勢欄位應使用
+  `insufficient_data`。
+
 ## 6. `ai_summary.md`
 
 用途：交給 ChatGPT、Claude、NotebookLM 或類似 AI 工具的主要文件。
@@ -277,6 +308,8 @@ GPS policy 行為：
 
 - `keep`：在 JSON、CSV 以及相關 AI 摘要中保留緯度與經度。
 - `remove`：JSON 中將緯度與經度設為 `null`，CSV 中留空，Markdown 中省略路線細節。
-- `redact_start_end`：移除或遮蔽活動開頭與結尾附近的 GPS 座標。
+- `redact_start_end`：預設以距離遮蔽活動前 300 公尺與後 300 公尺的
+  GPS 座標。距離資料不足時，改遮蔽前 10% 與後 10% trackpoints。
+  若活動太短，無法保留中段座標，則遮蔽所有 GPS 座標。
 
 輸出必須記錄所選的 GPS policy。
