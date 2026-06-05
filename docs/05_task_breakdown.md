@@ -38,12 +38,14 @@
 
 輸出：
 
-- 用於測試的 sanitized 或 minimal TCX fixture。
+- `tests/fixtures/` 中用於提交的 minimal sanitized TCX fixture。
+- `data/samples/` 中可選的本機樣本；此目錄必須保持 Git ignored。
 - 明確規則：原始個人 TCX 檔案不得被修改。
 
 完成條件：
 
 - 可以撰寫測試，而不暴露不必要的個人 GPS 或健康資料。
+- 測試不得依賴 `data/samples/` 中的本機私人資料。
 
 ## 階段 3：TCX Parser
 
@@ -65,6 +67,8 @@
 - 可以讀取 Running 活動欄位。
 - Lap 與 trackpoint collections 保留原始順序。
 - 無效 XML 會產生可讀的錯誤。
+- Warnings 符合 `code`、`severity`、`field`、`message`、
+  `source_file` schema。
 
 ## 階段 4：資料模型
 
@@ -105,6 +109,7 @@
 - 輸出包含 `source`、`privacy`、`activity`、`laps`、`trackpoints`
   與 `warnings`。
 - 缺漏值表示為 `null`。
+- 輸出資料夾使用 `safe_activity_id`，不直接使用原始 `activity_id`。
 
 ## 階段 6：CSV Exporter
 
@@ -144,8 +149,9 @@
 
 - 關鍵指標存在。
 - 單圈摘要存在。
-- 可行時，存在前半段與後半段配速趨勢。
-- 可行時，存在前半段與後半段心率趨勢。
+- 可行時，以距離切分前半段與後半段配速趨勢。
+- 可行時，以距離切分前半段與後半段心率趨勢。
+- 資料不足時，趨勢標示為 `insufficient_data`。
 - 存在資料品質與隱私備註。
 
 ## 階段 8：批次處理
@@ -166,6 +172,8 @@
 完成條件：
 
 - 可行時，單一壞檔案不會中止整個批次。
+- CLI exit code 符合 `0` 全部成功、`1` 部分失敗或略過、
+  `2` 轉換前輸入錯誤的慣例。
 
 ## 階段 9：驗收測試
 
