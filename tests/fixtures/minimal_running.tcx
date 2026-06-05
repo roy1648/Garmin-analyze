@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase
+    xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2"
+    xsi:schemaLocation="
+        http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2
+        http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
+  <Activities>
+    <Activity Sport="Running">
+      <Id>2000-01-01T00:00:00Z</Id>
+      <Lap StartTime="2000-01-01T00:00:00Z">
+        <TotalTimeSeconds>60.0</TotalTimeSeconds>
+        <DistanceMeters>200.0</DistanceMeters>
+        <Calories>10</Calories>
+        <Intensity>Active</Intensity>
+        <TriggerMethod>Manual</TriggerMethod>
+        <Track>
+          <Trackpoint>
+            <Time>2000-01-01T00:00:00Z</Time>
+            <Position>
+              <LatitudeDegrees>0.010000</LatitudeDegrees>
+              <LongitudeDegrees>0.010000</LongitudeDegrees>
+            </Position>
+            <AltitudeMeters>10.0</AltitudeMeters>
+            <DistanceMeters>0.0</DistanceMeters>
+            <HeartRateBpm>
+              <Value>120</Value>
+            </HeartRateBpm>
+            <Extensions>
+              <ns3:TPX>
+                <ns3:Speed>3.0</ns3:Speed>
+                <ns3:RunCadence>80</ns3:RunCadence>
+                <ns3:Watts>180</ns3:Watts>
+              </ns3:TPX>
+            </Extensions>
+          </Trackpoint>
+          <Trackpoint>
+            <Time>2000-01-01T00:01:00Z</Time>
+            <Position>
+              <LatitudeDegrees>0.010500</LatitudeDegrees>
+              <LongitudeDegrees>0.010500</LongitudeDegrees>
+            </Position>
+            <AltitudeMeters>11.0</AltitudeMeters>
+            <DistanceMeters>200.0</DistanceMeters>
+            <HeartRateBpm>
+              <Value>125</Value>
+            </HeartRateBpm>
+            <Extensions>
+              <ns3:TPX>
+                <ns3:Speed>3.2</ns3:Speed>
+                <ns3:RunCadence>82</ns3:RunCadence>
+                <ns3:Watts>185</ns3:Watts>
+              </ns3:TPX>
+            </Extensions>
+          </Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>
