@@ -29,8 +29,9 @@ dist/
 # Garmin personal data and derived private outputs
 data/raw/
 data/processed/
+data/samples/
 *.tcx
-!data/samples/**/*.tcx
+!tests/fixtures/**/*.tcx
 
 # Logs
 *.log
