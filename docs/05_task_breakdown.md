@@ -121,7 +121,7 @@
 - 公開結構使用 type hints。
 - Privacy policy 可被正確套用。
 
-## 階段 7：JSON Exporter
+## 階段 6：JSON Exporter
 
 目標：
 
@@ -142,7 +142,7 @@
 - 缺漏值表示為 `null`。
 - 輸出資料夾使用 `safe_activity_id`，不直接使用原始 `activity_id`。
 
-## 階段 8：CSV Exporter
+## 階段 7：CSV Exporter
 
 目標：
 
@@ -161,7 +161,7 @@
 - 必要欄位符合 `docs/02_data_contract.md`。
 - 缺漏值變成空白儲存格。
 
-## 階段 10：AI Summary Builder
+## 階段 8：AI Summary Builder
 
 目標：
 
@@ -185,7 +185,7 @@
 - 資料不足時，趨勢標示為 `insufficient_data`。
 - 存在資料品質與隱私備註。
 
-## 階段 11：批次處理與 CLI
+## 階段 9：批次處理與 CLI
 
 目標：
 
@@ -207,7 +207,7 @@
 - CLI exit code 符合 `0` 全部成功、`1` 部分失敗或略過、
   `2` 轉換前輸入錯誤的慣例。
 
-## 階段 12：驗收測試
+## 階段 10：驗收測試
 
 目標：
 
@@ -227,7 +227,7 @@
 - 覆蓋主要成功與失敗情境。
 - 測試確認原始 TCX 檔案不會被修改。
 
-## 階段 13：README
+## 階段 11：README
 
 目標：
 
