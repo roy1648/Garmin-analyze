@@ -42,7 +42,7 @@ Each valid Running TCX produces all four output files:
 - ✅ GPS privacy policy (`gps_policy`) supports all three modes:
   - `keep` — all latitude/longitude preserved
   - `remove` — all latitude/longitude removed or null
-  - `redact_start_end` — first 300m and last 300m (or 10% if insufficient distance) obscured
+  - `redact_start_end` — default: redact first 300m and last 300m of GPS coordinates; fallback if distance data insufficient: redact first and last 10% of trackpoints; if activity too short to preserve a middle segment: redact all GPS coordinates
 - ✅ Missing standard values follow the data contract:
   - JSON outputs use `null` for missing fields
   - CSV outputs use blank cells for missing values
