@@ -75,7 +75,9 @@
 
 **Progress:** `src/garmin_tcx_ai/models.py` created with baseline dataclass definitions. Awaiting TCX parser output to refine normalizer logic.
 
-## 階段 4：TCX Parser (Next Implementation Task)
+## 階段 4：TCX Parser ✅ 已實作
+
+**Status:** 完整實作，multi-lap 聚合正確，測試覆蓋完整。
 
 目標：
 
@@ -92,13 +94,24 @@
 
 完成條件：
 
-- 可以讀取 Running 活動欄位。
-- Lap 與 trackpoint collections 保留原始順序。
-- 無效 XML 會產生可讀的錯誤。
+- 可以讀取 Running 活動欄位。✅
+- Lap 與 trackpoint collections 保留原始順序。✅
+- 無效 XML 會產生可讀的錯誤。✅
 - Warnings 符合 `code`、`severity`、`field`、`message`、
-  `source_file` schema。
+  `source_file` schema。✅
 
-**Status:** 待開始。此任務將設定接下來整個轉換流程的基礎。
+**實作狀態（2026-06-27 修正版本）：**
+
+- `src/garmin_tcx_ai/parser.py` 實作完成。
+- `parse_tcx()` 回傳 `ParsedActivity`，覆蓋 activity、lap、
+  trackpoint 與 Garmin extension 欄位（Speed、RunCadence、Watts）。
+- Multi-lap aggregate 正確性：activity-level totals 由 lap 聚合推導
+  （總和），不從 Lap descendants 直接取值。
+- `TCXParseError` 處理無效 XML；`UnsupportedActivityError` 處理
+  非 Running 活動。
+- `tests/test_parser.py` 共 37 個測試全數通過（包含 multi-lap 測試）。
+- `tests/fixtures/two_lap_running.tcx` 提供 multi-lap 測試覆蓋。
+- Ruff lint 通過，無錯誤。
 
 ## 階段 5：Normalizer 與隱私
 

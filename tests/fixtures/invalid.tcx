@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase
+    xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
+  <Activities>
+    <Activity Sport="Running">
+      <Id>2000-01-01T00:00:00Z</Id>
+      <!-- Deliberately unclosed tag to produce a ParseError -->
+      <Lap StartTime="2000-01-01T00:00:00Z">
