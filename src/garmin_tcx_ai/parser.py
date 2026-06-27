@@ -197,34 +197,33 @@ def parse_tcx(file_path: str | Path) -> ParsedActivity:
     activity_id = _find_text(activity_el, "tcx:Id")
     start_time = _parse_time(activity_id)
 
-    # Activity-level aggregates (Garmin may include these after laps)
-    act_total_time = _float(
-        activity_el.find(
-            ".//tcx:TotalTimeSeconds", NS
-        )
-    )
-    act_distance = _float(
-        activity_el.find(".//tcx:DistanceMeters", NS)
-    )
-    act_calories = _int(
-        activity_el.find(".//tcx:Calories", NS)
-    )
+    # Look for activity-level aggregates directly under Activity,
+    # NOT in Lap descendants. Use findall to check for direct children.
+    act_total_time = None
+    act_distance = None
+    act_calories = None
 
-    # Attempt to find aggregated stats at the
-    # TrainingCenterDatabase > ActivitySummary level (not always present)
-    act_avg_hr_el = activity_el.find(
-        ".//tcx:AverageHeartRateBpm/tcx:Value", NS
-    )
-    act_avg_hr = _int(act_avg_hr_el)
+    for child in activity_el:
+        if child.tag == _tag(TCX_NS, "TotalTimeSeconds"):
+            act_total_time = _float(child)
+        elif child.tag == _tag(TCX_NS, "DistanceMeters"):
+            act_distance = _float(child)
+        elif child.tag == _tag(TCX_NS, "Calories"):
+            act_calories = _int(child)
 
-    act_max_hr_el = activity_el.find(
-        ".//tcx:MaximumHeartRateBpm/tcx:Value", NS
-    )
-    act_max_hr = _int(act_max_hr_el)
+    # For activity-level HR aggregates, do NOT search descendants.
+    # These are rare and often only present at lap level.
+    # Keep them as None for MVP; future hardening can derive them.
+    act_avg_hr = None
+    act_max_hr = None
 
-    act_max_speed = _float(
-        activity_el.find(".//tcx:MaximumSpeed", NS)
-    )
+    # Similarly, MaximumSpeed at activity level may not exist;
+    # it will be derived from laps below if not present.
+    act_max_speed = None
+    for child in activity_el:
+        if child.tag == _tag(TCX_NS, "MaximumSpeed"):
+            act_max_speed = _float(child)
+            break
 
     lap_elements = activity_el.findall("tcx:Lap", NS)
     laps: list[Lap] = []
