@@ -132,6 +132,10 @@ def _parse_trackpoint(
         cadence = _int(tpx.find("ns3:RunCadence", NS))
         power = _int(tpx.find("ns3:Watts", NS))
 
+    # Fall back to standard TCX Cadence element if not found in extensions
+    if cadence is None:
+        cadence = _int(tp_el.find("tcx:Cadence", NS))
+
     pace: float | None = None
     if speed is not None and speed > 0:
         pace = round(1000.0 / speed, 2)
@@ -235,8 +239,8 @@ def parse_tcx(file_path: str | Path) -> ParsedActivity:
         lap = _parse_lap(lap_el, lap_idx)
         laps.append(lap)
 
-        track_el = lap_el.find("tcx:Track", NS)
-        if track_el is not None:
+        track_els = lap_el.findall("tcx:Track", NS)
+        for track_el in track_els:
             for tp_el in track_el.findall("tcx:Trackpoint", NS):
                 tp = _parse_trackpoint(tp_el, tp_global_index, lap_idx)
                 trackpoints.append(tp)
@@ -278,6 +282,26 @@ def parse_tcx(file_path: str | Path) -> ParsedActivity:
         ]
         if valid_s:
             act_max_speed = max(valid_s)
+
+    # Derive activity-level HR aggregates from laps if not found at
+    # activity level
+    if act_avg_hr is None and laps:
+        valid_avg_hr = [
+            lap.average_heart_rate_bpm
+            for lap in laps
+            if lap.average_heart_rate_bpm is not None
+        ]
+        if valid_avg_hr:
+            act_avg_hr = int(sum(valid_avg_hr) / len(valid_avg_hr))
+
+    if act_max_hr is None and laps:
+        valid_max_hr = [
+            lap.maximum_heart_rate_bpm
+            for lap in laps
+            if lap.maximum_heart_rate_bpm is not None
+        ]
+        if valid_max_hr:
+            act_max_hr = max(valid_max_hr)
 
     # Emit warnings for completely missing optional fields
     if not trackpoints:
