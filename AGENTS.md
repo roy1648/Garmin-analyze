@@ -56,3 +56,74 @@ A task is done only when:
 - Documentation-only changes do not require test implementation.
 - The diff is small enough to review.
 - README or docs are updated if behavior changed.
+
+## PR Operating Rules
+
+Every PR must follow these guardrails to prevent scope creep:
+
+### 1. One PR = One Objective
+
+- Each PR focuses on a single, cohesive objective (e.g., "Implement TCX parser" or "Add JSON exporter").
+- Do not combine parser work, exporter work, privacy logic, summary building, CLI, and batch processing in a single PR.
+- If a PR becomes too large, split it into smaller, sequential PRs.
+
+### 2. PR Template Requirements
+
+Every PR must include:
+
+**a) Objective**  
+Clear one-sentence description of what this PR accomplishes.
+
+**b) Allowed Files**  
+Explicit list of which files this PR may modify (e.g., `src/garmin_tcx_ai/parser.py`, `tests/test_parser.py`).
+
+**c) Forbidden Files**  
+Explicit list of files this PR must NOT touch (e.g., `pyproject.toml`, `src/garmin_tcx_ai/cli.py`, `docs/04_architecture.md`).
+
+**d) Non-goals**  
+Explicit list of features explicitly NOT included in this PR (e.g., "does not handle Cycling activities", "does not implement batch mode").
+
+**e) Verification Commands**  
+Bash/PowerShell commands to verify the PR works locally (e.g., `pytest tests/test_parser.py`, `python scripts/convert_tcx.py --input tests/fixtures/minimal_running.tcx --output-dir /tmp/test`).
+
+### 3. Scope Enforcement
+
+- Do not implement roadmap items (GarminDB, python-garminconnect, Web UI, database, Garmin API, AI API upload) unless explicitly requested by the user in the task brief.
+- If documentation and implementation status conflict, report the conflict in the PR description instead of expanding scope to "make them match."
+- Do not add dependencies without explaining why in the PR description.
+- Do not add CLI flags, config files, or feature gates beyond the original specification.
+
+### 4. Data Safety & Security
+
+- Never commit raw TCX files, `.env`, credentials, or personal raw data.
+- Never print passwords, tokens, or private raw data in logs or tests.
+- Treat GPS coordinates and health metrics as sensitive.
+- Follow `docs/06_mvp_freeze.md` non-goals strictly.
+
+### Example PR Description
+
+```
+## Objective
+Implement TCX parser to extract activity, lap, and trackpoint data from Running activities.
+
+## Allowed Files
+- src/garmin_tcx_ai/parser.py
+- tests/test_parser.py
+- tests/fixtures/minimal_running.tcx (reference only)
+
+## Forbidden Files
+- pyproject.toml
+- src/garmin_tcx_ai/exporters.py
+- src/garmin_tcx_ai/summary.py
+- docs/04_architecture.md
+
+## Non-goals
+- Does not normalize or validate data (that is normalizer's job).
+- Does not apply privacy policies.
+- Does not export to JSON, CSV, or Markdown.
+- Does not handle non-Running activities.
+- Does not cache or store results.
+
+## Verification
+python -m pytest tests/test_parser.py -v
+```
