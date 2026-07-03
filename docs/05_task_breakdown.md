@@ -109,8 +109,11 @@
   （總和），不從 Lap descendants 直接取值。
 - `TCXParseError` 處理無效 XML；`UnsupportedActivityError` 處理
   非 Running 活動。
-- `tests/test_parser.py` 共 37 個測試全數通過（包含 multi-lap 測試）。
-- `tests/fixtures/two_lap_running.tcx` 提供 multi-lap 測試覆蓋。
+- 測試覆蓋：`tests/test_parser.py`（23 個 single-lap 與錯誤情境測試）
+  與 `tests/test_parser_multilap.py`（12 個 multi-lap 聚合測試）。
+- `tests/fixtures/two_lap_running.tcx` 提供 multi-lap 測試覆蓋
+  （兩圈、共 4 個 trackpoints，驗證 total/distance/calories 加總、
+  max speed/HR 取最大、avg HR 取平均）。
 - Ruff lint 通過，無錯誤。
 
 ## 階段 5：Normalizer 與隱私
