@@ -113,7 +113,9 @@
 - `tests/fixtures/two_lap_running.tcx` 提供 multi-lap 測試覆蓋。
 - Ruff lint 通過，無錯誤。
 
-## 階段 5：Normalizer 與隱私
+## 階段 5：Normalizer 與隱私 ✅ 已實作
+
+**Status:** 完整實作，GPS privacy 三種 policy 皆有測試覆蓋。
 
 目標：
 
@@ -130,11 +132,24 @@
 
 完成條件：
 
-- 缺漏的標準欄位可以表示為 `None`。
-- 公開結構使用 type hints。
-- Privacy policy 可被正確套用。
+- 缺漏的標準欄位可以表示為 `None`。✅
+- 公開結構使用 type hints。✅
+- Privacy policy 可被正確套用。✅
 
-## 階段 6：JSON Exporter
+**實作狀態（PR #5）：**
+
+- `src/garmin_tcx_ai/normalizer.py`：`normalize_activity(parsed, gps_policy)`
+  回傳 copy，不修改輸入；缺漏值保留 `None`；`source.file_name` 與
+  warnings 只保留檔名不含路徑；`speed_mps > 0` 時補算
+  `pace_seconds_per_km`；保留 `datetime` 物件交由 exporter 序列化。
+- `src/garmin_tcx_ai/privacy.py`：`apply_gps_policy()` 支援 `keep`、
+  `remove`、`redact_start_end`（距離優先、10% fallback、太短則全遮蔽），
+  回傳 copy 不 mutate 輸入。
+- `tests/test_normalizer.py`、`tests/test_privacy.py` 覆蓋完整。
+
+## 階段 6：JSON Exporter ✅ 已實作
+
+**Status:** 完整實作於 `src/garmin_tcx_ai/exporters.py`。
 
 目標：
 
@@ -151,11 +166,17 @@
 完成條件：
 
 - 輸出包含 `source`、`privacy`、`activity`、`laps`、`trackpoints`
-  與 `warnings`。
-- 缺漏值表示為 `null`。
-- 輸出資料夾使用 `safe_activity_id`，不直接使用原始 `activity_id`。
+  與 `warnings`。✅
+- 缺漏值表示為 `null`。✅
+- 輸出資料夾使用 `safe_activity_id`，不直接使用原始 `activity_id`。✅
 
-## 階段 7：CSV Exporter
+**實作狀態（PR #5）：** `write_activity_json()` 輸出六個頂層 keys，
+`None` → JSON `null`，`datetime` → ISO 8601 字串（`Z` 結尾），資料夾名稱
+由 `safe_activity_id()` 衍生。`tests/test_exporters.py` 覆蓋。
+
+## 階段 7：CSV Exporter ✅ 已實作
+
+**Status:** 完整實作於 `src/garmin_tcx_ai/exporters.py`。
 
 目標：
 
@@ -171,8 +192,12 @@
 
 完成條件：
 
-- 必要欄位符合 `docs/02_data_contract.md`。
-- 缺漏值變成空白儲存格。
+- 必要欄位符合 `docs/02_data_contract.md`。✅
+- 缺漏值變成空白儲存格。✅
+
+**實作狀態（PR #5）：** `write_trackpoints_csv()` 依契約順序輸出 13 欄
+UTF-8 CSV，缺漏值為空白 cell，GPS 欄位反映目前 privacy policy。
+`tests/test_exporters.py` 覆蓋。
 
 ## 階段 8：AI Summary Builder
 
