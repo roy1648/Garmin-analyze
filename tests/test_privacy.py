@@ -108,6 +108,48 @@ def test_redact_start_end_fallback_by_count() -> None:
     assert all(tp.latitude is not None for tp in tps[2:-2])
 
 
+def test_redact_start_end_sparse_distance_uses_count_fallback() -> None:
+    """Sparse distance data (some points missing) uses the count fallback.
+
+    Only a few points carry distance; the distance-based branch would leak
+    early points whose first recorded distance already exceeds 300m, so the
+    fraction fallback must be used instead.
+    """
+    pts = []
+    for i in range(20):
+        # Only every 5th point has a (large) cumulative distance.
+        dist = float(400 + i * 100) if i % 5 == 0 else None
+        pts.append(
+            Trackpoint(
+                trackpoint_index=i + 1,
+                lap_index=1,
+                latitude=10.0 + i * 0.001,
+                longitude=20.0 + i * 0.001,
+                distance_meters=dist,
+            )
+        )
+    result = apply_gps_policy(_make_activity(pts), "redact_start_end")
+    tps = result.trackpoints
+
+    # Fallback edge = floor(20 * 0.1) = 2: first 2 and last 2 redacted.
+    assert tps[0].latitude is None and tps[1].latitude is None
+    assert tps[-1].latitude is None and tps[-2].latitude is None
+    assert all(tp.latitude is not None for tp in tps[2:-2])
+
+
+def test_redact_start_end_distance_not_starting_at_zero() -> None:
+    """Windows anchor to the min distance when the run does not start at 0."""
+    # Distances 500..1500 (span 1000) -> redact <=800 and >=1200.
+    pts = _points_with_distance([float(d) for d in range(500, 1501, 100)])
+    result = apply_gps_policy(_make_activity(pts), "redact_start_end")
+    for tp in result.trackpoints:
+        d = tp.distance_meters
+        if d <= 800.0 or d >= 1200.0:
+            assert tp.latitude is None
+        else:
+            assert tp.latitude is not None
+
+
 def test_redact_start_end_short_activity_redacts_all_by_distance() -> None:
     """A short activity (<=600m total) has all coordinates redacted."""
     pts = _points_with_distance([0.0, 100.0, 200.0, 400.0])

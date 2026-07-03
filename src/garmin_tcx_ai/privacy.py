@@ -76,38 +76,38 @@ def _redact_start_end(trackpoints: list[Trackpoint]) -> None:
     if not trackpoints:
         return
 
-    distances = [
-        tp.distance_meters
-        for tp in trackpoints
-        if tp.distance_meters is not None
-    ]
-    total = max(distances) if distances else None
+    distances = [tp.distance_meters for tp in trackpoints]
 
-    # Distance data is usable only when most points carry a cumulative
-    # distance and the activity actually covers ground.
+    # Distance-based redaction is only reliable when EVERY trackpoint carries
+    # a cumulative distance. If any point is missing distance, the data is
+    # sparse and we fall back to redacting by count (per the contract);
+    # otherwise start-area points without a distance could leak.
     distance_usable = (
         len(distances) >= 2
-        and total is not None
-        and total > 0
+        and all(d is not None for d in distances)
     )
 
     if not distance_usable:
         _redact_by_fraction(trackpoints)
         return
 
+    # Anchor the start/end windows to the observed distance range: the first
+    # recorded distance may be greater than 0, so use min/max rather than
+    # assuming a 0 start.
+    start = min(distances)
+    end = max(distances)
+    span = end - start
+
     # Too short to keep any middle segment: redact everything.
-    if total <= 2 * REDACT_DISTANCE_METERS:
+    if span <= 2 * REDACT_DISTANCE_METERS:
         _remove_all(trackpoints)
         return
 
-    tail_threshold = total - REDACT_DISTANCE_METERS
+    head_threshold = start + REDACT_DISTANCE_METERS
+    tail_threshold = end - REDACT_DISTANCE_METERS
     for tp in trackpoints:
         dist = tp.distance_meters
-        if dist is None:
-            # Without a distance we cannot place the point safely; redact it.
-            _clear_coords(tp)
-            continue
-        if dist <= REDACT_DISTANCE_METERS or dist >= tail_threshold:
+        if dist <= head_threshold or dist >= tail_threshold:
             _clear_coords(tp)
 
 
