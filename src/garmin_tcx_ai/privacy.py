@@ -114,7 +114,9 @@ def _redact_start_end(trackpoints: list[Trackpoint]) -> None:
 def _redact_by_fraction(trackpoints: list[Trackpoint]) -> None:
     """Redact the first and last fraction of trackpoints by count."""
     n = len(trackpoints)
-    edge = max(1, math.floor(n * REDACT_FALLBACK_FRACTION))
+    # Round up so each end covers at least REDACT_FALLBACK_FRACTION of points
+    # even when n is not a multiple of 10 (e.g. 19 points -> 2 per end).
+    edge = max(1, math.ceil(n * REDACT_FALLBACK_FRACTION))
 
     # Not enough points to keep a middle segment: redact everything.
     if edge * 2 >= n:

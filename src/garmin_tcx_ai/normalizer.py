@@ -40,10 +40,20 @@ def normalize_activity(
 
 
 def _sanitize_source(activity: ParsedActivity) -> None:
-    """Ensure ``source.file_name`` contains only a bare file name."""
+    """Sanitize source metadata so no absolute local path is exposed.
+
+    ``file_name`` is reduced to a bare name. ``file_path`` is left as-is when
+    it is already relative (matching the data-contract example), but an
+    absolute path is reduced to the bare file name so exported JSON never
+    leaks local directory or user names.
+    """
     file_name = activity.source.file_name
     if file_name:
         activity.source.file_name = Path(file_name).name
+
+    file_path = activity.source.file_path
+    if file_path and Path(file_path).is_absolute():
+        activity.source.file_path = Path(file_path).name
 
 
 def _sanitize_warnings(activity: ParsedActivity) -> None:

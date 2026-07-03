@@ -108,6 +108,27 @@ def test_redact_start_end_fallback_by_count() -> None:
     assert all(tp.latitude is not None for tp in tps[2:-2])
 
 
+def test_redact_start_end_fallback_rounds_up_to_cover_fraction() -> None:
+    """Fallback redacts at least 10% at each end (ceil), e.g. 19 -> 2."""
+    pts = [
+        Trackpoint(
+            trackpoint_index=i + 1,
+            lap_index=1,
+            latitude=10.0 + i * 0.001,
+            longitude=20.0 + i * 0.001,
+        )
+        for i in range(19)
+    ]
+    result = apply_gps_policy(_make_activity(pts), "redact_start_end")
+    tps = result.trackpoints
+
+    # ceil(19 * 0.1) = 2 redacted at each end.
+    assert tps[0].latitude is None and tps[1].latitude is None
+    assert tps[-1].latitude is None and tps[-2].latitude is None
+    assert tps[2].latitude is not None
+    assert tps[-3].latitude is not None
+
+
 def test_redact_start_end_sparse_distance_uses_count_fallback() -> None:
     """Sparse distance data (some points missing) uses the count fallback.
 

@@ -87,6 +87,23 @@ def test_warning_source_file_has_no_path() -> None:
         assert not Path(w.source_file).is_absolute()
 
 
+def test_absolute_file_path_is_not_exposed() -> None:
+    """An absolute source.file_path is reduced to a bare file name."""
+    activity = _make_activity()
+    activity.source.file_path = str(Path.cwd() / "data" / "raw" / "run.tcx")
+    result = normalize_activity(activity, "keep")
+    assert not Path(result.source.file_path).is_absolute()
+    assert result.source.file_path == "run.tcx"
+
+
+def test_relative_file_path_is_preserved() -> None:
+    """A relative source.file_path is left untouched."""
+    activity = _make_activity()
+    activity.source.file_path = "data/raw/run.tcx"
+    result = normalize_activity(activity, "keep")
+    assert result.source.file_path == "data/raw/run.tcx"
+
+
 def test_pace_derived_from_positive_speed() -> None:
     """pace_seconds_per_km is derived when speed_mps > 0, else None."""
     result = normalize_activity(_make_activity(), "keep")
