@@ -394,6 +394,30 @@ def test_pace_trend_insufficient_without_timestamps() -> None:
     assert trend["first_half_average_pace_seconds_per_km"] is None
 
 
+def test_pace_trend_sparse_boundary_sample_included() -> None:
+    """The midpoint sample is shared so a sparse 3-point run still
+    computes a second-half pace instead of insufficient_data."""
+    points = [
+        Trackpoint(
+            timestamp=START, distance_meters=0.0, heart_rate_bpm=140,
+        ),
+        Trackpoint(
+            timestamp=START + timedelta(seconds=1800),
+            distance_meters=5000.0,
+            heart_rate_bpm=150,
+        ),
+        Trackpoint(
+            timestamp=START + timedelta(seconds=3300),
+            distance_meters=10000.0,
+            heart_rate_bpm=160,
+        ),
+    ]
+    summary = build_ai_summary(_make_activity(trackpoints=points))
+    trend = summary["trend_summary"]
+    assert trend["second_half_average_pace_seconds_per_km"] is not None
+    assert trend["pace_trend"] != "insufficient_data"
+
+
 def test_trends_insufficient_without_distance() -> None:
     """No distance anywhere yields insufficient_data for both trends."""
     activity = Activity(total_time_seconds=3600.0)

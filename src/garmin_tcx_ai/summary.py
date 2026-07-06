@@ -281,9 +281,18 @@ def _trend_summary(parsed: ParsedActivity) -> dict:
         if tp.distance_meters is not None
         and tp.distance_meters > midpoint
     ]
+    # Pace needs a time/distance span, so the midpoint boundary sample
+    # is shared with the second half; otherwise a sparse second half
+    # with only a finish sample would wrongly report insufficient_data.
+    second_half_for_pace = [
+        tp
+        for tp in parsed.trackpoints
+        if tp.distance_meters is not None
+        and tp.distance_meters >= midpoint
+    ]
 
     first_pace = _segment_pace(first_half)
-    second_pace = _segment_pace(second_half)
+    second_pace = _segment_pace(second_half_for_pace)
     result["first_half_average_pace_seconds_per_km"] = _round1(
         first_pace
     )
