@@ -202,7 +202,9 @@
 UTF-8 CSV，缺漏值為空白 cell，GPS 欄位反映目前 privacy policy。
 `tests/test_exporters.py` 覆蓋。
 
-## 階段 8：AI Summary Builder
+## 階段 8：AI Summary Builder ✅ 已實作
+
+**Status:** 完整實作，單元測試與真實資料 smoke test 皆通過。
 
 目標：
 
@@ -219,12 +221,28 @@ UTF-8 CSV，缺漏值為空白 cell，GPS 欄位反映目前 privacy policy。
 
 完成條件：
 
-- 關鍵指標存在。
-- 單圈摘要存在。
-- 可行時，以距離切分前半段與後半段配速趨勢。
-- 可行時，以距離切分前半段與後半段心率趨勢。
-- 資料不足時，趨勢標示為 `insufficient_data`。
-- 存在資料品質與隱私備註。
+- 關鍵指標存在。✅
+- 單圈摘要存在。✅
+- 可行時，以距離切分前半段與後半段配速趨勢。✅
+- 可行時，以距離切分前半段與後半段心率趨勢。✅
+- 資料不足時，趨勢標示為 `insufficient_data`。✅
+- 存在資料品質與隱私備註。✅
+
+**實作狀態（PR #8）：**
+
+- `src/garmin_tcx_ai/summary.py`：`build_ai_summary()` 純資料轉換，
+  產生七個頂層 key（`activity_summary`、`key_metrics`、`lap_summary`、
+  `trend_summary`、`privacy`、`data_quality`、`ai_context`）；
+  `render_ai_summary_markdown()` 產生固定章節的事實型 Markdown。
+- 趨勢以距離 midpoint 切分前半 / 後半，3% threshold 判定
+  `faster_later` / `slower_later` / `stable`，資料不足為
+  `insufficient_data`。海拔 gain 只加總正向上升，有效點不足 2 個為 `None`。
+- `src/garmin_tcx_ai/exporters.py`：新增 `write_ai_summary_json()` 與
+  `write_ai_summary_markdown()`，沿用既有 `safe_activity_id` 資料夾，
+  `None` → JSON `null`，`datetime` → ISO 8601（`Z` 結尾），UTF-8。
+- summary 與 markdown 皆不輸出 GPS 座標或路線細節，不含教練 / 醫療建議。
+- 測試：`tests/test_summary.py`（37 個測試）與擴充的
+  `tests/test_exporters.py`。真實 TCX smoke test 產生四個檔案且無 GPS 洩漏。
 
 ## 階段 9：批次處理與 CLI
 
