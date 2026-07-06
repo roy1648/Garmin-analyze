@@ -173,7 +173,7 @@ def _group_activities(
             continue
         previous = groups[-1][-1]
         previous_start = previous.activity.start_time
-        same_date = (
+        same_recorded_start_date = (
             previous_start is not None
             and previous_start.date() == start.date()
         )
@@ -182,7 +182,7 @@ def _group_activities(
             previous_start is not None
             and _aware(start) - _aware(previous_start) <= max_gap
         )
-        if same_date and same_sport and within_gap:
+        if same_recorded_start_date and same_sport and within_gap:
             groups[-1].append(item)
         else:
             groups.append([item])
@@ -241,7 +241,7 @@ def _build_session(
         ),
         "grouping_confidence": "candidate",
         "grouping_rule": {
-            "same_local_date": True,
+            "same_recorded_start_date": True,
             "same_sport": True,
             "max_gap_minutes": max_gap_minutes,
         },

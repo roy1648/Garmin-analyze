@@ -347,7 +347,8 @@ GPS policy 行為：
 activities 依 `start_time` 排序。相鄰 activities 只有同時符合以下規則才
 放入同一個 session candidate：
 
-- 同一個 local date。
+- 相同 recorded start date（直接使用已記錄的 `start_time.date()`，不做
+  timezone local conversion）。
 - 相同 sport。
 - 相鄰 `start_time` 間隔不超過 `max_gap_minutes`（預設 30）。
 

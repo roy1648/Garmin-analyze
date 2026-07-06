@@ -152,8 +152,8 @@ def test_different_sport_creates_separate_candidates() -> None:
     assert len(bundle["sessions"]) == 2
 
 
-def test_different_date_creates_separate_candidates() -> None:
-    """Activities on different local dates remain separate."""
+def test_different_recorded_start_date_creates_separate_candidates() -> None:
+    """Activities with different recorded start dates remain separate."""
     bundle = build_session_bundle(
         [
             _activity("one.tcx", START),
@@ -233,7 +233,7 @@ def test_session_id_and_grouping_rule_are_stable() -> None:
     session = build_session_bundle([_activity("one.tcx", START)])["sessions"][0]
     assert session["session_id"] == "2026-07-05_Running_001"
     assert session["grouping_rule"] == {
-        "same_local_date": True,
+        "same_recorded_start_date": True,
         "same_sport": True,
         "max_gap_minutes": 30,
     }

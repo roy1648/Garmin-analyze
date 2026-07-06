@@ -270,8 +270,8 @@ UTF-8 CSV，缺漏值為空白 cell，GPS 欄位反映目前 privacy policy。
 完成條件：
 
 - 一個 TCX file 永遠保留為一個 activity。✅
-- 同 local date、同 sport、相鄰 start-time gap 不超過門檻時，才放入
-  同一 candidate。✅
+- 同 recorded start date、同 sport、相鄰 start-time gap 不超過門檻時，
+  才放入同一 candidate；不執行 timezone local conversion。✅
 - 缺少 start time 時為獨立 candidate 並記錄 data quality。✅
 - Grouping 明確標示 candidate，role inference 明確停用。✅
 - Session totals、duration-weighted average HR 與 maximum HR 使用固定公式。✅

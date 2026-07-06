@@ -204,13 +204,14 @@
 
 ## 18. Multi-TCX session candidate grouping
 
-前提：多個 activities 的 local date 與 sport 相同，且相鄰 start time gap
+前提：多個 activities 的 recorded start date 與 sport 相同，且相鄰
+start time gap
 不超過 30 分鐘。
 
 當：建立 session bundle。
 則：activities 依 start time 排序並進入同一個 session candidate。
 
-前提：gap 超過 30 分鐘、sport 不同或 local date 不同。
+前提：gap 超過 30 分鐘、sport 不同或 recorded start date 不同。
 
 當：建立 session bundle。
 則：建立不同 session candidates。
