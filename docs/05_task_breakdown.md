@@ -232,11 +232,11 @@ UTF-8 CSV，缺漏值為空白 cell，GPS 欄位反映目前 privacy policy。
 
 - `src/garmin_tcx_ai/summary.py`：`build_ai_summary()` 純資料轉換，
   產生七個頂層 key（`activity_summary`、`key_metrics`、`lap_summary`、
-  `trend_summary`、`privacy`、`data_quality`、`ai_context`）；
+  `computed_split_metrics`、`privacy`、`data_quality`、`data_policy`）；
   `render_ai_summary_markdown()` 產生固定章節的事實型 Markdown。
-- 趨勢以距離 midpoint 切分前半 / 後半，3% threshold 判定
-  `faster_later` / `slower_later` / `stable`，資料不足為
-  `insufficient_data`。海拔 gain 只加總正向上升，有效點不足 2 個為 `None`。
+- Phase 9 起，split 以距離 midpoint 切分前半 / 後半，只保留固定公式
+  metrics 與 second-half delta，不再輸出語意 label。海拔 gain 只加總正向
+  上升並明確標記 computed method，有效點不足 2 個為 `None`。
 - `src/garmin_tcx_ai/exporters.py`：新增 `write_ai_summary_json()` 與
   `write_ai_summary_markdown()`，沿用既有 `safe_activity_id` 資料夾，
   `None` → JSON `null`，`datetime` → ISO 8601（`Z` 結尾），UTF-8。
@@ -244,27 +244,44 @@ UTF-8 CSV，缺漏值為空白 cell，GPS 欄位反映目前 privacy policy。
 - 測試：`tests/test_summary.py`（37 個測試）與擴充的
   `tests/test_exporters.py`。真實 TCX smoke test 產生四個檔案且無 GPS 洩漏。
 
-## 階段 9：批次處理與 CLI
+## 階段 9：Multi-TCX Session Bundle 與 No-Inference Policy ✅ 已實作
+
+**Status:** 完成實作與自動化測試；CLI 不在本階段範圍。
 
 目標：
 
-- 轉換資料夾中的所有 TCX 檔案。
-- 實作 CLI 指令 `python scripts/convert_tcx.py`。
+- 將多個已 normalize TCX activities 建立成 AI 可讀的事實型 session
+  bundle。
+- 收斂 single-activity summary，移除語意 trend labels 與 Suggested AI
+  Analysis Questions。
+- 明確禁止 workout-role inference、教練建議與醫療解讀。
 
 輸入：
 
-- 資料夾路徑、輸出目錄、GPS policy 旗標。
+- 多個已 normalize 的 `ParsedActivity`。
+- 可調整的 `max_gap_minutes`，預設 30。
 
 輸出：
 
-- 每個有效 Running TCX 都有一組輸出檔案。
-- 對被略過的檔案提出 warnings。
+- `session_bundle/session_bundle.json`。
+- `session_bundle/session_bundle.md`。
+- 更新後的 no-inference `ai_summary.json` 與 `ai_summary.md`。
 
 完成條件：
 
-- 可行時，單一壞檔案不會中止整個批次。
-- CLI exit code 符合 `0` 全部成功、`1` 部分失敗或略過、
-  `2` 轉換前輸入錯誤的慣例。
+- 一個 TCX file 永遠保留為一個 activity。✅
+- 同 local date、同 sport、相鄰 start-time gap 不超過門檻時，才放入
+  同一 candidate。✅
+- 缺少 start time 時為獨立 candidate 並記錄 data quality。✅
+- Grouping 明確標示 candidate，role inference 明確停用。✅
+- Session totals、duration-weighted average HR 與 maximum HR 使用固定公式。✅
+- Summary 與 bundle 均不含 GPS 座標、路線細節、課表角色推論、
+  Suggested AI Analysis Questions、教練建議或醫療解讀。✅
+- pytest 與 Ruff 驗證通過。✅
+
+刻意不包含：CLI、batch CLI command、Garmin API、database、Web UI、
+AI API upload、weekly summary、HR zone、planned workout matching 或任何
+訓練處方。
 
 ## 階段 10：驗收測試
 

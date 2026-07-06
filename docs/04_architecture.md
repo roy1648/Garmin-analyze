@@ -27,6 +27,7 @@ src/
     normalizer.py
     exporters.py
     summary.py
+    session.py
     privacy.py
 scripts/
   convert_tcx.py
@@ -53,6 +54,7 @@ Parser 不應：
 - 寫入輸出檔案。
 - 套用 AI 摘要邏輯。
 - 修改 privacy policy。
+- 判斷 activity、lap 或 segment 的訓練角色。
 
 ### 3.2 Normalizer
 
@@ -87,6 +89,8 @@ Parser 不應：
 - `trackpoints.csv`
 - `ai_summary.json`
 - `ai_summary.md`
+- `session_bundle/session_bundle.json`
+- `session_bundle/session_bundle.md`
 
 Exporters 不應直接解析 TCX。
 
@@ -100,14 +104,30 @@ Exporters 不應直接解析 TCX。
 
 - 關鍵指標。
 - 單圈摘要。
-- 前半段與後半段的配速趨勢。
-- 前半段與後半段的心率趨勢。
+- 前半段與後半段的配速與心率固定公式數值及 delta。
 - 資料品質說明。
-- 建議的 AI 分析問題。
+- No-Inference Data Policy。
 
-Summary builder 應保持基於事實，並避免醫療或專業教練聲明。
+Summary builder 只輸出 TCX 原始欄位、固定公式結果與資料政策。不得產生
+課表角色、語意 trend label、主動分析問題、教練建議或醫療解讀。
 
-### 3.6 Script Entrypoint
+### 3.6 Session Bundle Builder
+
+`session.py` 負責：
+
+- 接收多個已 normalize 的 `ParsedActivity`。
+- 依 start time 排序。
+- 只用 same local date、same sport 與相鄰 start-time gap 規則建立
+  session candidates。
+- 保留一個 TCX file 等於一個 activity 的 identity。
+- 以固定公式計算 session totals、duration-weighted average HR 與
+  maximum HR。
+- 產生不含 GPS 座標或路線細節的 Markdown。
+
+Session builder 不判斷 workout 或 activity role。所有 grouping 都是
+candidate，不是 TCX 來源中的事實；缺少 start time 時不得強行合併。
+
+### 3.7 Script Entrypoint
 
 MVP 可以從簡單 script 開始。
 
@@ -139,11 +159,16 @@ TCX file or folder
   -> TCX parser
   -> normalizer
   -> privacy policy
-  -> summary builder
+  -> per-activity summary builder
+  -> optional session candidate builder for multiple normalized activities
   -> JSON / CSV / Markdown exporters
 ```
 
 在整個流程中，原始 TCX 檔案都是唯讀。
+
+邊界如下：parser 只解析來源欄位；normalizer 正規化與套用 privacy；
+summary 建立單一 activity 的事實型資料；session 只做 candidate grouping
+與固定公式聚合；exporters 只負責寫檔，不重新解析或推論。
 
 ## 5. 依賴策略
 

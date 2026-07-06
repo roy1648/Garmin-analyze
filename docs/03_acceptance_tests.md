@@ -41,7 +41,7 @@
 
 - JSON 心率欄位為 `null`。
 - CSV 心率儲存格為空。
-- 如果無法計算心率趨勢，AI 摘要包含資料品質說明。
+- 如果無法計算 split 心率數值，AI 摘要以 `null` 與 notes 說明。
 - 轉換不會失敗。
 
 ## 5. 缺少 GPS
@@ -52,7 +52,7 @@
 
 - JSON 緯度與經度欄位為 `null`。
 - CSV 緯度與經度儲存格為空。
-- AI 摘要說明無法進行路線分析。
+- AI 摘要不包含 GPS 座標或路線細節。
 - 轉換不會失敗。
 
 ## 6. 缺少海拔
@@ -158,15 +158,18 @@
 當：CLI 結束  
 則：exit code 為 `2`。
 
-## 15. 趨勢計算
+## 15. Computed split metrics
 
 前提：Running TCX 有足夠的距離、時間與 trackpoint 資料  
 當：工具產生 AI-ready summary  
-則：前半段與後半段趨勢以累積距離切分。
+則：前半段與後半段以累積距離切分，並輸出配速與心率的純數值 delta。
 
 前提：距離、時間或 trackpoint 資料不足  
 當：工具產生 AI-ready summary  
-則：受影響的趨勢欄位為 `insufficient_data`。
+則：受影響的數值欄位為 `null`，`data_available` 與 notes 說明資料狀態。
+
+而且：輸出不包含 `faster_later`、`slower_later`、`stable`、疲勞、
+表現或課表品質等語意解讀。
 
 ## 16. AI-ready Markdown
 
@@ -177,14 +180,65 @@
 - 活動摘要
 - 關鍵指標
 - 單圈摘要
-- 配速趨勢
-- 心率趨勢
+- Computed split metrics
 - 海拔摘要
 - 資料品質說明
 - 隱私備註
-- 建議的 AI 分析問題
+- No-Inference Data Policy
 
-## 17. 完成條件
+而且：不包含 Suggested AI Analysis Questions 或其他主動分析問題。
+
+## 17. No-Inference Policy
+
+前提：有一個或多個已 normalize 的 TCX activities。
+
+當：建立 summary 或 session bundle。
+則：
+
+- activity 與 lap 的 `role` 為 `null`。
+- `role_source` 為 `not_inferred`。
+- 不輸出課表角色、訓練目的、教練建議或醫療解讀。
+- `data_policy` 明確記錄 no workout-role inference、no coaching advice
+  與 no medical interpretation。
+- 不輸出 Suggested AI Analysis Questions。
+
+## 18. Multi-TCX session candidate grouping
+
+前提：多個 activities 的 local date 與 sport 相同，且相鄰 start time gap
+不超過 30 分鐘。
+
+當：建立 session bundle。
+則：activities 依 start time 排序並進入同一個 session candidate。
+
+前提：gap 超過 30 分鐘、sport 不同或 local date 不同。
+
+當：建立 session bundle。
+則：建立不同 session candidates。
+
+前提：activity 缺少 start time。
+
+當：建立 session bundle。
+則：該 activity 成為獨立 candidate，data quality 記錄缺漏。
+
+每個 candidate 必須標示 `grouping_confidence: candidate` 與
+`role_inference: disabled`。總距離、總時間、duration-weighted average HR
+與 maximum HR 必須符合固定公式。
+
+## 19. Session bundle exporters
+
+前提：有多個已 normalize activities。
+
+當：寫出 session bundle。
+則：
+
+- 產生 `session_bundle/session_bundle.json`。
+- 產生 `session_bundle/session_bundle.md`。
+- JSON 包含完整 top-level keys 與 data/privacy policy。
+- Markdown 包含固定事實型章節。
+- 兩個輸出均不含 GPS 座標、路線細節、課表角色推論、教練建議或
+  Suggested AI Analysis Questions。
+
+## 20. 完成條件
 
 MVP 完成的條件：
 

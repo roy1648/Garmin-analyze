@@ -40,6 +40,17 @@
 
 不支援的擴充欄位可以略過。
 
+### 1.3 No-Inference Policy
+
+本工具只輸出 TCX 原始欄位、由 TCX 數值以固定公式計算的結果、
+資料品質標記、隱私策略與來源政策。無法由 TCX 欄位直接取得或以明確
+公式計算的內容，不得自動產生。
+
+- 不判斷活動、lap 或 segment 的課表角色與訓練目的。
+- 不產生教練建議、醫療解讀、訓練處方或主動分析問題。
+- `role` 固定為 `null`，`role_source` 固定為 `not_inferred`。
+- 分組結果只可標示為 candidate，不可表示為來源資料中的事實。
+
 ## 2. 輸出檔案組
 
 每個來源活動都應在輸出目錄下產生一組檔案。
@@ -223,10 +234,10 @@ CSV 規則：
   "activity_summary": {},
   "key_metrics": {},
   "lap_summary": [],
-  "trend_summary": {},
+  "computed_split_metrics": {},
   "privacy": {},
   "data_quality": {},
-  "ai_context": ""
+  "data_policy": {}
 }
 ```
 
@@ -242,35 +253,43 @@ MVP 關鍵指標：
 - 最大心率
 - 最低海拔
 - 最高海拔
-- 估計爬升高度
+- 估計爬升高度，並標記
+  `sum_positive_consecutive_altitude_deltas` 計算方法
 - 單圈數量
 
-### 5.2 趨勢摘要
+每筆 lap summary 必須包含：
 
-MVP 趨勢欄位：
+```json
+{
+  "role": null,
+  "role_source": "not_inferred"
+}
+```
+
+### 5.2 Computed Split Metrics
+
+前後半以累積距離 midpoint 切分，只輸出固定公式數值：
 
 - 前半段平均配速
 - 後半段平均配速
-- 配速趨勢
+- 後半段配速 delta（後半減前半，單位為 seconds per km）
 - 前半段平均心率
 - 後半段平均心率
-- 心率趨勢
+- 後半段心率 delta（後半減前半，單位為 bpm）
 
-允許的簡單趨勢標籤：
+`faster_later`、`slower_later`、`stable` 與 `insufficient_data` 等語意
+label 不再使用。`pace_data_available` 與 `heart_rate_data_available` 分別
+標記兩組數值，兩者皆可用時 `data_available` 才是 `true`。無法計算的
+數值為 `null`，`notes` 說明缺少 distance、timestamp 或 heart-rate data。
 
-- `faster_later`
-- `slower_later`
-- `stable`
-- `insufficient_data`
+`interpretation_policy` 固定為
+`computed_metrics_only_no_training_interpretation`。
 
-趨勢計算規則：
+### 5.3 Data Policy
 
-- 可行時，以累積距離切分前半段與後半段。
-- 前半段代表 0% 到 50% 距離；後半段代表 50% 到 100% 距離。
-- 配速趨勢需要足夠的距離與時間資料。
-- 心率趨勢需要足夠的心率與 trackpoint 資料。
-- 距離、時間或 trackpoint 資料不足時，相關趨勢欄位應使用
-  `insufficient_data`。
+`data_policy` 記錄來源為 `tcx_file`，允許 raw TCX fields、固定公式、
+data-quality flags 與 privacy policy，並明確將 workout-role inference、
+coaching advice 與 medical interpretation 設為停用。
 
 ## 6. `ai_summary.md`
 
@@ -287,9 +306,7 @@ MVP 趨勢欄位：
 
 ## Lap Summary
 
-## Pace Trend
-
-## Heart Rate Trend
+## Computed Split Metrics
 
 ## Elevation
 
@@ -297,19 +314,57 @@ MVP 趨勢欄位：
 
 ## Privacy Notes
 
-## Suggested AI Analysis Questions
+## Data Policy
 ```
 
-Markdown 應該簡潔、基於事實，並避免假裝自己是認證教練或醫療專業人士。
+Markdown 必須簡潔、基於事實，不得包含 GPS 座標、路線細節、教練或醫療
+建議，也不得包含 Suggested AI Analysis Questions 或任何主動分析問題。
 
 ## 7. 隱私契約
 
 GPS policy 行為：
 
-- `keep`：在 JSON、CSV 以及相關 AI 摘要中保留緯度與經度。
+- `keep`：在 `activity.json` 與 CSV 保留緯度與經度；AI summary 與
+  session bundle 仍不包含座標或路線細節。
 - `remove`：JSON 中將緯度與經度設為 `null`，CSV 中留空，Markdown 中省略路線細節。
 - `redact_start_end`：預設以距離遮蔽活動前 300 公尺與後 300 公尺的
   GPS 座標。距離資料不足時，改遮蔽前 10% 與後 10% trackpoints。
   若活動太短，無法保留中段座標，則遮蔽所有 GPS 座標。
 
 輸出必須記錄所選的 GPS policy。
+
+## 8. Multi-TCX Session Bundle
+
+### 8.1 輸入與 identity
+
+- 輸入為多個已 normalize 的 `ParsedActivity`。
+- 一個 activity 永遠等於一個來源 TCX file，不合併 activity identity。
+- 每個 activity 與 lap 的 `role` 為 `null`，`role_source` 為
+  `not_inferred`。
+
+### 8.2 Candidate grouping
+
+activities 依 `start_time` 排序。相鄰 activities 只有同時符合以下規則才
+放入同一個 session candidate：
+
+- 同一個 local date。
+- 相同 sport。
+- 相鄰 `start_time` 間隔不超過 `max_gap_minutes`（預設 30）。
+
+沒有 `start_time` 的 activity 必須是獨立 candidate，並在 data quality
+記錄缺漏。所有 session 的 `grouping_confidence` 都是 `candidate`，
+`role_inference` 都是 `disabled`。
+
+### 8.3 輸出
+
+```text
+session_bundle/
+  session_bundle.json
+  session_bundle.md
+```
+
+JSON 必須包含 `schema_version`、`export_scope`、`data_policy`、`sessions`、
+`data_quality` 與 `privacy`。Session totals 使用固定加總公式；平均心率使用
+activity duration 加權；最大心率使用可用 activity maximum 的最大值。
+兩種 bundle artifact 均不得包含 GPS 座標、路線細節、課表角色推論、
+教練建議、醫療解讀或 Suggested AI Analysis Questions。
