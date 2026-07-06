@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git branch *)",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(gh pr create --title 'Freeze MVP definition and add PR workflow guardrails' --body ' *)",
+      "Bash(git commit -m 'Consolidate project config: CLAUDE.md now points to AGENTS.md *)",
+      "Bash(git commit -m 'Polish MVP freeze documentation: fix phase numbering and add Product Done Definition *)",
+      "Bash(git commit -m 'Fix redact_start_end definition: include distance fallback and short-activity redaction rule *)",
+      "Bash(gh api repos/roy1648/Garmin-analyze/pulls/3/comments/3486003874/replies -f 'body=Updated redact_start_end definition to include: default 300m redaction, fallback to first/last 10% trackpoints if distance data missing, and redaction of all coordinates if activity too short to preserve middle segment. *)",
+      "Bash(gh pr create --title 'feat: implement TCX parser vertical slice for Garmin Running activities' --body ' *)",
+      "PowerShell(python --version)",
+      "PowerShell(python -c \"import sys; print\\(f'Executable: {sys.executable}'\\)\")",
+      "PowerShell(uv --version)",
+      "Bash(git fetch *)",
+      "Bash(git rebase *)",
+      "Bash(git show *)",
+      "Read(//tmp/**)",
+      "Bash(git commit -m 'fix: correct activity-level aggregate queries to avoid mis-parsing multi-lap activities *)",
+      "Bash(gh pr *)",
+      "Bash(.venv/Scripts/python -m pip install -e . -q)",
+      "Bash(.venv/Scripts/python -)",
+      "Bash(python -m pip install -e . -q)",
+      "Bash(python -)",
+      "Bash(python -m compileall -q src tests)",
+      "Bash(python -m pytest -q tests/test_tcx_fixture.py tests/test_parser.py)",
+      "Bash(python -m pytest -q)",
+      "Bash(python -m ruff check src tests --no-cache)",
+      "Bash(git commit -m 'fix: address Codex review feedback on parser robustness *)",
+      "Bash(gh api repos/roy1648/Garmin-analyze/pulls/4/comments/3486029158/replies -f 'body=Changed line 238-243 to use `findall\\(\"tcx:Track\"\\)` and iterate all Track segments per lap, preserving trackpoints from segmented runs. *)",
+      "Bash(gh api repos/roy1648/Garmin-analyze/pulls/4/comments/3486051941/replies -f 'body=Added lines 287-303 to derive activity average_heart_rate_bpm and maximum_heart_rate_bpm from lap values when not found at activity level, recovering 154 bpm avg / 192 bpm max on real Garmin exports. *)",
+      "Bash(gh api repos/roy1648/Garmin-analyze/pulls/4/comments/3486051944/replies -f 'body=Added lines 135-137 to fall back to tcx:Cadence element when ns3:RunCadence is absent, ensuring cadence captures both extension and standard TCX variants at 100% trackpoint coverage. *)",
+      "Bash(git -C . log --oneline -15)",
+      "Bash(git -C . status)",
+      "Bash(git pull *)"
+    ]
+  }
+}
