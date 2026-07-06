@@ -11,6 +11,8 @@ from garmin_tcx_ai.exporters import (
     CSV_COLUMNS,
     safe_activity_id,
     write_activity_json,
+    write_ai_summary_json,
+    write_ai_summary_markdown,
     write_trackpoints_csv,
 )
 from garmin_tcx_ai.models import (
@@ -173,3 +175,109 @@ def test_csv_is_utf8(tmp_path: Path) -> None:
     path = write_trackpoints_csv(_make_activity(), tmp_path)
     # Should not raise.
     path.read_text(encoding="utf-8")
+
+
+# --- AI summary JSON exporter ----------------------------------------------
+
+def test_write_ai_summary_json_creates_file(tmp_path: Path) -> None:
+    """ai_summary.json is written under a safe activity folder."""
+    path = write_ai_summary_json(_make_activity(), tmp_path)
+    assert path.exists()
+    assert path.name == "ai_summary.json"
+    assert path.parent.name == "2026-05-01T06_30_00Z"
+
+
+def test_ai_summary_json_top_level_keys(tmp_path: Path) -> None:
+    """ai_summary.json contains all required top-level keys."""
+    path = write_ai_summary_json(_make_activity(), tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for key in ("activity_summary", "key_metrics", "lap_summary",
+                "trend_summary", "privacy", "data_quality",
+                "ai_context"):
+        assert key in data
+
+
+def test_ai_summary_json_none_becomes_null(tmp_path: Path) -> None:
+    """Missing values are serialized as JSON null."""
+    path = write_ai_summary_json(_make_activity(), tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    # _make_activity has no distance, so pace cannot be computed.
+    metrics = data["key_metrics"]
+    assert metrics["average_pace_seconds_per_km"] is None
+    assert metrics["average_pace_formatted"] is None
+
+
+def test_ai_summary_json_datetime_is_iso8601(tmp_path: Path) -> None:
+    """datetime values are serialized as ISO 8601 strings."""
+    path = write_ai_summary_json(_make_activity(), tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    start = data["activity_summary"]["start_time"]
+    assert start == "2026-05-01T06:30:00Z"
+    assert data["lap_summary"][0]["start_time"] == start
+
+
+def test_ai_summary_json_uses_safe_folder(tmp_path: Path) -> None:
+    """The raw activity_id (with colons) is not used as a folder."""
+    write_ai_summary_json(_make_activity(), tmp_path)
+    assert not (tmp_path / "2026-05-01T06:30:00Z").exists()
+
+
+# --- AI summary Markdown exporter -------------------------------------------
+
+def test_write_ai_summary_markdown_creates_file(
+    tmp_path: Path,
+) -> None:
+    """ai_summary.md is written under a safe activity folder."""
+    path = write_ai_summary_markdown(_make_activity(), tmp_path)
+    assert path.exists()
+    assert path.name == "ai_summary.md"
+    assert path.parent.name == "2026-05-01T06_30_00Z"
+
+
+def test_ai_summary_markdown_has_fixed_sections(
+    tmp_path: Path,
+) -> None:
+    """ai_summary.md contains every fixed section heading."""
+    path = write_ai_summary_markdown(_make_activity(), tmp_path)
+    text = path.read_text(encoding="utf-8")
+    for heading in (
+        "# Running Activity Summary",
+        "## Activity",
+        "## Key Metrics",
+        "## Lap Summary",
+        "## Pace Trend",
+        "## Heart Rate Trend",
+        "## Elevation",
+        "## Data Quality Notes",
+        "## Privacy Notes",
+        "## Suggested AI Analysis Questions",
+    ):
+        assert heading in text
+
+
+def test_ai_summary_markdown_has_no_gps(tmp_path: Path) -> None:
+    """ai_summary.md never contains coordinates, even with keep."""
+    activity = _make_activity()  # keeps latitude=25.0/longitude=121.0
+    path = write_ai_summary_markdown(activity, tmp_path)
+    text = path.read_text(encoding="utf-8")
+    assert "latitude" not in text.lower()
+    assert "longitude" not in text.lower()
+    assert "25.0" not in text
+    assert "121.0" not in text
+
+
+def test_ai_summary_markdown_no_coaching_or_medical(
+    tmp_path: Path,
+) -> None:
+    """ai_summary.md contains no coaching or medical advice."""
+    path = write_ai_summary_markdown(_make_activity(), tmp_path)
+    text = path.read_text(encoding="utf-8").lower()
+    for phrase in (
+        "you should",
+        "we recommend",
+        "training plan",
+        "medical advice",
+        "diagnosis",
+        "as your coach",
+    ):
+        assert phrase not in text

@@ -5,6 +5,8 @@ This module writes the data-contract output files for a normalized
 
 * ``activity.json`` -- complete structured activity record.
 * ``trackpoints.csv`` -- flat UTF-8 CSV of trackpoint data.
+* ``ai_summary.json`` -- structured AI-ready factual summary.
+* ``ai_summary.md`` -- concise AI-ready Markdown summary.
 
 Both files are written into a per-activity folder whose name is a
 path-safe identifier derived from the activity id or source file name.
@@ -20,6 +22,10 @@ from pathlib import Path
 from typing import Any
 
 from garmin_tcx_ai.models import ParsedActivity
+from garmin_tcx_ai.summary import (
+    build_ai_summary,
+    render_ai_summary_markdown,
+)
 
 # Characters that are unsafe in Windows and POSIX path components.
 _UNSAFE_CHARS = '<>:"/\\|?*'
@@ -137,6 +143,53 @@ def write_activity_json(
             default=_json_default,
         )
         fh.write("\n")
+    return target
+
+
+def write_ai_summary_json(
+    activity: ParsedActivity,
+    output_dir: Path,
+) -> Path:
+    """Write ``ai_summary.json`` for a normalized activity.
+
+    The JSON is the :func:`build_ai_summary` payload: top-level keys
+    ``activity_summary``, ``key_metrics``, ``lap_summary``,
+    ``trend_summary``, ``privacy``, ``data_quality`` and ``ai_context``.
+    ``None`` values are emitted as JSON ``null`` and ``datetime`` values
+    as ISO 8601 strings. Returns the path to the written file.
+    """
+    folder = _output_folder(activity, output_dir)
+    summary = build_ai_summary(activity)
+
+    target = folder / "ai_summary.json"
+    with target.open("w", encoding="utf-8", newline="\n") as fh:
+        json.dump(
+            summary,
+            fh,
+            ensure_ascii=False,
+            indent=2,
+            default=_json_default,
+        )
+        fh.write("\n")
+    return target
+
+
+def write_ai_summary_markdown(
+    activity: ParsedActivity,
+    output_dir: Path,
+) -> Path:
+    """Write ``ai_summary.md`` for a normalized activity.
+
+    The UTF-8 Markdown document is rendered by
+    :func:`render_ai_summary_markdown` from the
+    :func:`build_ai_summary` payload and never contains GPS coordinates
+    or route details. Returns the path to the written file.
+    """
+    folder = _output_folder(activity, output_dir)
+    text = render_ai_summary_markdown(build_ai_summary(activity))
+
+    target = folder / "ai_summary.md"
+    target.write_text(text, encoding="utf-8", newline="\n")
     return target
 
 
