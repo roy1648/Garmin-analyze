@@ -281,15 +281,9 @@ def _trend_summary(parsed: ParsedActivity) -> dict:
         if tp.distance_meters is not None
         and tp.distance_meters > midpoint
     ]
-    # Pace needs a time/distance span, so the midpoint boundary sample
-    # is shared with the second half; otherwise a sparse second half
-    # with only a finish sample would wrongly report insufficient_data.
-    second_half_for_pace = [
-        tp
-        for tp in parsed.trackpoints
-        if tp.distance_meters is not None
-        and tp.distance_meters >= midpoint
-    ]
+    second_half_for_pace = _second_half_pace_points(
+        parsed.trackpoints, midpoint
+    )
 
     first_pace = _segment_pace(first_half)
     second_pace = _segment_pace(second_half_for_pace)
@@ -442,6 +436,28 @@ def _distance_midpoint(parsed: ParsedActivity) -> float | None:
     if total is None or total <= 0:
         return None
     return total / 2.0
+
+
+def _second_half_pace_points(
+    trackpoints: list[Trackpoint], midpoint: float
+) -> list[Trackpoint]:
+    """Return trackpoints that bracket the midpoint for pace timing.
+
+    Pace needs a time/distance span that actually crosses the
+    midpoint. If no sample lands exactly on the midpoint, the strict
+    "distance > midpoint" points alone may all sit close to the
+    finish (or be a single point), understating or losing the span
+    entirely. Anchoring with the last sample at or before the midpoint
+    approximates the midpoint crossing without discarding real data.
+    """
+    with_distance = [
+        tp for tp in trackpoints if tp.distance_meters is not None
+    ]
+    before = [tp for tp in with_distance if tp.distance_meters <= midpoint]
+    after = [tp for tp in with_distance if tp.distance_meters > midpoint]
+    if before and after:
+        return [before[-1], *after]
+    return after
 
 
 def _segment_pace(trackpoints: list[Trackpoint]) -> float | None:

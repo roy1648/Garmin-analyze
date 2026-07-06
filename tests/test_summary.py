@@ -418,6 +418,36 @@ def test_pace_trend_sparse_boundary_sample_included() -> None:
     assert trend["pace_trend"] != "insufficient_data"
 
 
+def test_pace_trend_no_sample_at_midpoint() -> None:
+    """When no sample lands exactly on the midpoint (only one point
+    falls after it), the last pre-midpoint sample still anchors the
+    second-half pace span instead of returning insufficient_data."""
+    points = [
+        Trackpoint(
+            timestamp=START, distance_meters=0.0,
+        ),
+        Trackpoint(
+            timestamp=START + timedelta(seconds=300),
+            distance_meters=1000.0,
+        ),
+        Trackpoint(
+            timestamp=START + timedelta(seconds=650),
+            distance_meters=2100.0,
+        ),
+    ]
+    activity = Activity(
+        sport="Running",
+        total_time_seconds=650.0,
+        distance_meters=2100.0,
+    )
+    summary = build_ai_summary(
+        _make_activity(trackpoints=points, activity=activity)
+    )
+    trend = summary["trend_summary"]
+    assert trend["second_half_average_pace_seconds_per_km"] is not None
+    assert trend["pace_trend"] != "insufficient_data"
+
+
 def test_trends_insufficient_without_distance() -> None:
     """No distance anywhere yields insufficient_data for both trends."""
     activity = Activity(total_time_seconds=3600.0)
