@@ -172,6 +172,17 @@ PR #18 adds output actions:
 - These actions are presentation/output convenience only.
 - They do not modify `pipeline.run_bundle()`, output schema, parser, normalizer, exporter, or session contract.
 
+PR #20 adds native local path picker support and copy-button API compatibility handling.
+
+Boundary:
+- Native dialogs (`tkinter`) are local-only convenience wrappers.
+- `_create_hidden_tk_root()` is extracted as a private seam for testability.
+- If native dialogs fail, manual path input remains the primary fallback.
+- Copy actions use `st.iframe` (Streamlit >= 1.56) with raw HTML/JS; no deprecated
+  `streamlit.components.v1.html` is used.
+- Copy actions are presentation-only and do not modify generated output.
+- `pipeline.run_bundle()` remains the only execution path.
+
 
 
 ## 3. Session Bundle API

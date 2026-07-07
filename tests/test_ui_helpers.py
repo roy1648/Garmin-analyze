@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from garmin_tcx_ai.ui_helpers import (
+    DialogResult,
     can_open_folder,
     default_output_dir,
     folder_open_command,
@@ -14,6 +15,8 @@ from garmin_tcx_ai.ui_helpers import (
     output_file_status,
     read_output_text,
     read_text_if_exists,
+    select_directory_dialog,
+    select_tcx_file_dialog,
 )
 
 
@@ -213,3 +216,145 @@ def test_open_folder_nonexistent_or_not_dir(tmp_path: Path) -> None:
     res2 = open_folder(temp_file)
     assert not res2.success
     assert "路徑不存在或不是資料夾" in res2.message
+
+
+# ---------------------------------------------------------------------------
+# Dialog helper tests – monkeypatching _create_hidden_tk_root as the seam
+# so no real native window is opened and CI without display still passes.
+# ---------------------------------------------------------------------------
+
+class _FakeRoot:
+    """Fake Tk root that records destroy() calls."""
+
+    def __init__(self) -> None:
+        self.destroyed = False
+
+    def withdraw(self) -> None:
+        pass
+
+    def wm_attributes(self, *args: object) -> None:
+        pass
+
+    def destroy(self) -> None:
+        self.destroyed = True
+
+
+def test_select_tcx_file_dialog_success(monkeypatch) -> None:
+    """select_tcx_file_dialog returns success when user picks a file."""
+    import garmin_tcx_ai.ui_helpers as _mod
+
+    fake_root = _FakeRoot()
+    monkeypatch.setattr(_mod, "_create_hidden_tk_root", lambda: fake_root)
+
+    import types
+    fake_fd = types.SimpleNamespace(
+        askopenfilename=lambda **_kw: "/some/path/run.tcx"
+    )
+    monkeypatch.setitem(
+        __import__("sys").modules, "tkinter.filedialog", fake_fd
+    )
+
+    result = select_tcx_file_dialog()
+    assert isinstance(result, DialogResult)
+    assert result.success is True
+    assert result.path_text == "/some/path/run.tcx"
+    assert "已選擇 TCX 檔案" in result.message
+    assert fake_root.destroyed
+
+
+def test_select_tcx_file_dialog_cancelled(monkeypatch) -> None:
+    """select_tcx_file_dialog returns failure when user cancels."""
+    import garmin_tcx_ai.ui_helpers as _mod
+
+    fake_root = _FakeRoot()
+    monkeypatch.setattr(_mod, "_create_hidden_tk_root", lambda: fake_root)
+
+    import types
+    fake_fd = types.SimpleNamespace(
+        askopenfilename=lambda **_kw: ""  # empty string = cancel
+    )
+    monkeypatch.setitem(
+        __import__("sys").modules, "tkinter.filedialog", fake_fd
+    )
+
+    result = select_tcx_file_dialog()
+    assert result.success is False
+    assert result.path_text == ""
+    assert "未選擇檔案" in result.message
+
+
+def test_select_tcx_file_dialog_tk_failure(monkeypatch) -> None:
+    """select_tcx_file_dialog returns graceful failure if tkinter fails."""
+    import garmin_tcx_ai.ui_helpers as _mod
+
+    monkeypatch.setattr(
+        _mod,
+        "_create_hidden_tk_root",
+        lambda: (_ for _ in ()).throw(RuntimeError("no display")),
+    )
+
+    result = select_tcx_file_dialog()
+    assert result.success is False
+    assert result.path_text == ""
+    assert "無法開啟檔案選擇器" in result.message
+
+
+def test_select_directory_dialog_success(monkeypatch) -> None:
+    """select_directory_dialog returns success when user picks a directory."""
+    import garmin_tcx_ai.ui_helpers as _mod
+
+    fake_root = _FakeRoot()
+    monkeypatch.setattr(_mod, "_create_hidden_tk_root", lambda: fake_root)
+
+    import types
+    fake_fd = types.SimpleNamespace(
+        askdirectory=lambda **_kw: "/some/output/dir"
+    )
+    monkeypatch.setitem(
+        __import__("sys").modules, "tkinter.filedialog", fake_fd
+    )
+
+    result = select_directory_dialog("title")
+    assert isinstance(result, DialogResult)
+    assert result.success is True
+    assert result.path_text == "/some/output/dir"
+    assert "已選擇資料夾" in result.message
+    assert fake_root.destroyed
+
+
+def test_select_directory_dialog_cancelled(monkeypatch) -> None:
+    """select_directory_dialog returns failure when user cancels."""
+    import garmin_tcx_ai.ui_helpers as _mod
+
+    fake_root = _FakeRoot()
+    monkeypatch.setattr(_mod, "_create_hidden_tk_root", lambda: fake_root)
+
+    import types
+    fake_fd = types.SimpleNamespace(
+        askdirectory=lambda **_kw: ""
+    )
+    monkeypatch.setitem(
+        __import__("sys").modules, "tkinter.filedialog", fake_fd
+    )
+
+    result = select_directory_dialog()
+    assert result.success is False
+    assert result.path_text == ""
+    assert "未選擇資料夾" in result.message
+
+
+def test_select_directory_dialog_tk_failure(monkeypatch) -> None:
+    """select_directory_dialog returns graceful failure if tkinter fails."""
+    import garmin_tcx_ai.ui_helpers as _mod
+
+    monkeypatch.setattr(
+        _mod,
+        "_create_hidden_tk_root",
+        lambda: (_ for _ in ()).throw(RuntimeError("no display")),
+    )
+
+    result = select_directory_dialog()
+    assert result.success is False
+    assert result.path_text == ""
+    assert "無法開啟資料夾選擇器" in result.message
+
