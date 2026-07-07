@@ -9,6 +9,8 @@ import streamlit as st
 from garmin_tcx_ai.pipeline import BundleRunConfig, run_bundle
 from garmin_tcx_ai.ui_helpers import (
     default_output_dir,
+    inspect_input_path,
+    normalize_output_path,
     output_file_status,
     read_text_if_exists,
 )
@@ -76,62 +78,103 @@ def main() -> None:
     with col1:
         st.subheader("參數設定")
 
+        # Basic Section
         input_path_str = st.text_input(
             "Input path (TCX 檔案或資料夾路徑)",
             value="",
             help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
         )
 
+        # Immediate input path check
+        status = inspect_input_path(input_path_str)
+        if status.is_valid:
+            st.success(status.message)
+        else:
+            if not input_path_str.strip():
+                st.warning(status.message)
+            else:
+                st.error(status.message)
+
         output_dir_str = st.text_input(
             "Output folder (輸出資料夾)",
             value=st.session_state.default_output,
-            help="轉換後的結果儲存目錄。",
+            help="轉換後的結果儲存目錄。留空將使用自動產生的預設資料夾。",
         )
 
-        gps_policy = st.selectbox(
-            "GPS Policy (GPS 隱私政策)",
-            options=["redact_start_end", "remove", "keep"],
-            index=0,
-            help="模糊化起終點、完全移除座標或保留原始座標。",
-        )
-
-        timezone_name = st.text_input(
-            "Timezone (本地時區)",
-            value="Asia/Taipei",
-            help="指定時區名稱，例如 Asia/Taipei 或 UTC。",
-        )
-
-        max_gap_minutes = st.number_input(
-            "Max gap minutes (活動分組間隔上限)",
-            min_value=0,
-            value=30,
-            step=1,
-            help="相同 local date 下分組 adjacent activities 的最大間隔。",
-        )
+        if st.button("重新產生預設輸出資料夾"):
+            st.session_state.default_output = str(default_output_dir())
+            st.rerun()
 
         st.markdown("**輸出選項**")
         write_coach_handoff = st.checkbox(
             "Generate coach handoff (產生 coach_handoff.md)",
             value=True,
         )
-        write_atomic = st.checkbox(
-            "Generate atomic artifacts (產生詳細除錯檔)",
-            value=False,
+
+        # Advanced Section inside expander
+        with st.expander("進階設定", expanded=False):
+            gps_policy = st.selectbox(
+                "GPS Policy (GPS 隱私政策)",
+                options=["redact_start_end", "remove", "keep"],
+                index=0,
+                help=(
+                    "redact_start_end：建議預設，保留路線資訊但遮蔽起終點。\n"
+                    "remove：移除 GPS 座標，隱私最高。\n"
+                    "keep：保留 GPS 座標，僅在你確定要保留時使用。"
+                ),
+            )
+
+            timezone_name = st.text_input(
+                "Timezone (本地時區)",
+                value="Asia/Taipei",
+                help="指定時區名稱，例如 Asia/Taipei 或 UTC。",
+            )
+
+            max_gap_minutes = st.number_input(
+                "Max gap minutes (活動分組間隔上限)",
+                min_value=0,
+                value=30,
+                step=1,
+                help="相同 local date 下分組 adjacent activities 的最大間隔。",
+            )
+
+            write_atomic = st.checkbox(
+                "Generate atomic artifacts (產生詳細除錯檔)",
+                value=False,
+                help="Atomic artifacts：通常不需要，除非你要除錯或檢查原子輸出。",
+            )
+
+        # Pre-run Summary
+        st.markdown("### 即將執行：")
+        tcx_desc = f"{status.tcx_count} 個" if status.is_valid else "無效"
+        st.markdown(
+            f"- **Input**: `{input_path_str.strip() or '未填寫'}`\n"
+            f"- **TCX count**: {tcx_desc}\n"
+            f"- **Output**: `{output_dir_str.strip() or '將使用預設路徑'}`\n"
+            f"- **GPS policy**: `{gps_policy}`\n"
+            f"- **Coach handoff**: {'on' if write_coach_handoff else 'off'}\n"
+            f"- **Atomic artifacts**: {'on' if write_atomic else 'off'}"
         )
 
-        st.markdown("<div style='margin-top: 1.5rem;'></div>",
-                    unsafe_allow_html=True)
+        if gps_policy == "keep":
+            st.warning(
+                "目前 GPS policy = keep，輸出可能保留完整座標。請確認你真的需要保留 GPS。"
+            )
+
+        st.markdown(
+            "<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True
+        )
         run_btn = st.button("開始轉換")
 
         if run_btn:
-            if not input_path_str.strip():
-                st.error("錯誤：請填寫 Input path。")
-            elif not output_dir_str.strip():
-                st.error("錯誤：請填寫 Output folder。")
+            status = inspect_input_path(input_path_str)
+            if not status.is_valid:
+                st.error(f"無法執行：{status.message}")
             else:
+                normalized_out = normalize_output_path(output_dir_str)
                 config = BundleRunConfig(
                     input_path=Path(input_path_str.strip()),
-                    output_dir=Path(output_dir_str.strip()),
+                    output_dir=normalized_out,
                     gps_policy=gps_policy,
                     timezone_name=timezone_name.strip(),
                     max_gap_minutes=int(max_gap_minutes),
@@ -166,7 +209,7 @@ def main() -> None:
                 st.markdown("### 輸出路徑")
                 st.code(str(res.output_dir.resolve()), language="text")
 
-                st.markdown("### 輸出狀態")
+                st.markdown("### 輸出狀態與下載")
                 st.markdown(
                     "- **session_bundle.json**: "
                     f"{output_file_status(res.session_bundle_json_path)}"
@@ -180,21 +223,41 @@ def main() -> None:
                     f"{output_file_status(res.coach_handoff_markdown_path)}"
                 )
 
-                st.markdown("---")
-
-                # Markdown preview expanders
+                # Download buttons if files exist
                 sb_content = read_text_if_exists(
                     res.session_bundle_markdown_path
                 )
+                ch_content = read_text_if_exists(
+                    res.coach_handoff_markdown_path
+                )
+
+                dl_col1, dl_col2 = st.columns(2)
+                with dl_col1:
+                    if sb_content:
+                        st.download_button(
+                            label="下載 session_bundle.md",
+                            data=sb_content,
+                            file_name="session_bundle.md",
+                            mime="text/markdown",
+                        )
+                with dl_col2:
+                    if ch_content:
+                        st.download_button(
+                            label="下載 coach_handoff.md",
+                            data=ch_content,
+                            file_name="coach_handoff.md",
+                            mime="text/markdown",
+                        )
+
+                st.markdown("---")
+
+                # Markdown preview expanders
                 with st.expander("預覽 session_bundle.md", expanded=True):
                     if sb_content:
                         st.markdown(sb_content)
                     else:
                         st.write("未產生")
 
-                ch_content = read_text_if_exists(
-                    res.coach_handoff_markdown_path
-                )
                 with st.expander("預覽 coach_handoff.md", expanded=True):
                     if ch_content:
                         st.markdown(ch_content)
@@ -202,7 +265,13 @@ def main() -> None:
                         st.write("未產生")
             else:
                 st.error("❌ 轉換失敗！")
-                st.markdown(f"**詳細錯誤**：\n```\n{res.error_message}\n```")
+                st.error(
+                    "轉換失敗，請先檢查 Input path、TCX 檔案格式、Timezone 或輸出路徑。"
+                )
+                with st.expander("技術錯誤訊息", expanded=True):
+                    st.code(
+                        res.error_message or "無詳細錯誤訊息", language="text"
+                    )
                 if res.warning_messages:
                     st.warning("警告：")
                     for warning in res.warning_messages:

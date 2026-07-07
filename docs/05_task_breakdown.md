@@ -291,7 +291,43 @@ scope creep。
 - 不做 EXE 打包。
 - 不做系統托盤。
 - 不做自動開啟檔案總管。
-- 不做多頁式完整產品 UI。
-- 不新增除 Streamlit 以外的 dependencies。
+- 不做多頁式完整產品 UI.
+- 不新增除 Streamlit 以外的 dependencies.
+
+
+## Phase 17：Improve Local UI Interaction Flow
+
+目標：
+- 改善本機 Streamlit UI 的填寫體驗。
+- 增加 input path 預檢、TCX 數量提示、預執行摘要、進階設定收合、錯誤訊息與 Markdown 下載。
+- 保持 CLI、pipeline 與輸出契約不變。
+
+完成條件：
+- Input path 有即時檢查與友善訊息。
+- Output folder 預設值穩定，且可重新產生。
+- 基礎設定與進階設定分離。
+- 執行前顯示設定摘要。
+- 成功後可預覽與下載 Markdown。
+- 失敗時顯示友善錯誤與技術細節。
+- 新增 helper tests。
+- 不新增 dependency。
+- 不修改核心 pipeline / parser / normalizer / exporter / session contract。
+
+非目標：
+- 不做 native file picker。
+- 不做 `st.file_uploader`。
+- 不做 drag-and-drop upload。
+- 不做自動開啟檔案總管。
+- 不做 EXE 打包。
+- 不做多頁式 UI。
+- 不做圖表。
+- 不做 AI coaching。
+- 不做 Garmin Connect API。
+- 不做資料庫。
+- 不做雲端同步。
+- 不做 HR zone / Garmin zone。
+- 不做課表角色推論。
+- 不做 planned workout matching。
+- 不新增 dependencies。
 
 

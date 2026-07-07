@@ -159,8 +159,12 @@ CLI 不加入任何 business logic 或核心資料推論。
 - UI 不直接解析 TCX。
 - UI 不修改資料契約。
 - UI 不輸出 AI coaching、medical interpretation、role inference。
-- UI 不上傳任何資料至外部服務。
 - UI 僅限本機執行。
+
+PR #17 將 UI interaction refinement 限定在 presentation / validation helpers：
+- UI 可做 path pre-check 與友善提示。
+- 真正資料處理仍由 `pipeline.run_bundle()` 執行。
+- UI helper 不得取代 pipeline validation，只能提供執行前使用者提示。
 
 
 
