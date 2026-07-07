@@ -126,6 +126,8 @@ def main() -> None:
         if run_btn:
             if not input_path_str.strip():
                 st.error("錯誤：請填寫 Input path。")
+            elif not output_dir_str.strip():
+                st.error("錯誤：請填寫 Output folder。")
             else:
                 config = BundleRunConfig(
                     input_path=Path(input_path_str.strip()),

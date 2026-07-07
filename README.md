@@ -76,7 +76,7 @@ uv run garmin-tcx-ai bundle `
 啟動 Streamlit Local UI：
 
 ```powershell
-uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
+uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py --server.address localhost
 ```
 
 使用方式：
