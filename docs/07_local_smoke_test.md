@@ -51,4 +51,4 @@ Output folder: <專案路徑>/data/processed/cli_fixture_smoke
 
 > [!CAUTION]
 > - 輸出的 `data/processed/` 資料夾已被列入 `.gitignore`。
-> - **切勿**將個人真實的活動檔案（位於 `data/raw/` 或 `data/processed/`）提交至 Git 中。
+> - **切勿**提交 `data/raw/`、`data/samples/` 或 `data/processed/` 內的私人 Garmin 資料與輸出。
