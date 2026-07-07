@@ -375,8 +375,8 @@ def test_markdown_removes_questions_and_semantic_output(tmp_path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     lowered = text.lower()
     assert "Suggested AI Analysis Questions" not in text
-    assert "## Computed Split Metrics" in text
-    assert "## Data Policy" in text
+    assert "## 固定公式分段指標" in text
+    assert "## 資料政策" in text
     for label in FORBIDDEN_LABELS:
         assert label not in lowered
     for phrase in ("you should", "we recommend", "diagnosis"):

@@ -380,24 +380,24 @@ def test_markdown_has_fixed_sections_and_no_sensitive_content() -> None:
         build_session_bundle([_activity("one.tcx", START)])
     )
     lines = markdown.splitlines()
-    assert lines[0] == "# TCX Multi-Activity Report"
+    assert lines[0] == "# TCX 多活動報告"
     assert (
-        "does not merge them into one recorded workout"
+        "這並不代表將它們合併為單次記錄的運動"
         in markdown
     )
     assert (
-        "Session candidates are candidate activity groups for review"
+        "Session Candidate 候選分組為供審閱的候選活動分組"
         in markdown
     )
     for heading in (
-        "## Data Policy",
-        "## Export Scope",
-        "## Session Candidates",
-        "## Activities",
-        "## Lap Summaries",
-        "## Computed Split Metrics",
-        "## Data Quality",
-        "## Privacy",
+        "## 資料政策",
+        "## 輸出範圍",
+        "## Session Candidate 候選分組",
+        "## 活動紀錄",
+        "## Lap 摘要",
+        "## 固定公式分段指標",
+        "## 資料品質",
+        "## 隱私保護",
     ):
         assert heading in markdown
     lowered = markdown.lower()

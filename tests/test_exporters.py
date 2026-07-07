@@ -251,15 +251,15 @@ def test_ai_summary_markdown_has_fixed_sections(
     path = write_ai_summary_markdown(_make_activity(), tmp_path)
     text = path.read_text(encoding="utf-8")
     for heading in (
-        "# Running Activity Summary",
-        "## Activity",
-        "## Key Metrics",
-        "## Lap Summary",
-        "## Computed Split Metrics",
-        "## Elevation",
-        "## Data Quality Notes",
-        "## Privacy Notes",
-        "## Data Policy",
+        "# 跑步活動摘要",
+        "## 活動",
+        "## 關鍵指標",
+        "## Lap 摘要",
+        "## 固定公式分段指標",
+        "## 高度",
+        "## 資料品質備註",
+        "## 隱私保護備註",
+        "## 資料政策",
     ):
         assert heading in text
 
@@ -389,23 +389,23 @@ def test_single_activity_session_bundle_markdown_is_standard_output(
     activity.trackpoints[0].power_watts = 210
     path = write_session_bundle_markdown([activity], tmp_path)
     text = path.read_text(encoding="utf-8")
-    assert text.splitlines()[0] == "# TCX Multi-Activity Report"
+    assert text.splitlines()[0] == "# TCX 多活動報告"
     assert (
-        "does not merge them into one recorded workout"
+        "這並不代表將它們合併為單次記錄的運動"
         in text
     )
     assert path == tmp_path / "session_bundle" / "session_bundle.md"
-    assert "- Activities: 1" in text
-    assert "- Session candidates: 1" in text
-    assert "- Local date: 2026-05-01" in text
-    assert "- Timezone: Asia/Taipei" in text
-    assert "- Average run cadence raw: 82.0" in text
-    assert "- Average watts: 210.0" in text
-    assert "Pace reliability" in text
-    assert "Reliability reason" in text
-    assert "Avg cadence raw" in text
-    assert "Avg watts" in text
-    assert "Interpretation level:" in text
+    assert "- 活動紀錄：1" in text
+    assert "- Session Candidate 候選分組：1" in text
+    assert "- 本地日期：2026-05-01" in text
+    assert "- 時區：Asia/Taipei" in text
+    assert "- 平均原始跑步步頻：82.0" in text
+    assert "- 平均功率：210.0" in text
+    assert "配速可信度" in text
+    assert "可信度原因" in text
+    assert "平均原始步頻" in text
+    assert "平均功率" in text
+    assert "解讀層級：" in text
 
 
 def test_session_bundle_markdown_is_factual_and_private(
@@ -418,24 +418,24 @@ def test_session_bundle_markdown_is_factual_and_private(
     text = path.read_text(encoding="utf-8")
     lowered = text.lower()
     for heading in (
-        "# TCX Multi-Activity Report",
-        "## Data Policy",
-        "## Export Scope",
-        "## Session Candidates",
-        "## Activities",
-        "## Lap Summaries",
-        "## Computed Split Metrics",
-        "## Data Quality",
-        "## Privacy",
+        "# TCX 多活動報告",
+        "## 資料政策",
+        "## 輸出範圍",
+        "## Session Candidate 候選分組",
+        "## 活動紀錄",
+        "## Lap 摘要",
+        "## 固定公式分段指標",
+        "## 資料品質",
+        "## 隱私保護",
     ):
         assert heading in text
     assert "Suggested AI Analysis Questions" not in text
     assert (
-        "Session candidates are candidate activity groups for review"
+        "Session Candidate 候選分組為供審閱的候選活動分組"
         in text
     )
     assert (
-        "does not merge them into one recorded workout"
+        "這並不代表將它們合併為單次記錄的運動"
         in text
     )
     for phrase in (

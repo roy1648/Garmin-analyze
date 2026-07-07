@@ -66,7 +66,7 @@ def render_ai_summary_markdown(summary: dict) -> str:
     *summary* must be the dict produced by :func:`build_ai_summary`.
     The output is concise, factual, and never contains GPS coordinates,
     route details, coaching advice, or medical interpretation. Missing
-    values are shown as ``unavailable``.
+    values are shown as ``無資料``.
     """
     act = summary["activity_summary"]
     metrics = summary["key_metrics"]
@@ -74,111 +74,110 @@ def render_ai_summary_markdown(summary: dict) -> str:
     privacy = summary["privacy"]
     quality = summary["data_quality"]
 
-    lines: list[str] = ["# Running Activity Summary", ""]
+    lines: list[str] = ["# 跑步活動摘要", ""]
 
-    lines += ["## Activity", ""]
+    lines += ["## 活動", ""]
     lines += [
-        f"- Sport: {_md(act['sport'])}",
-        f"- Activity ID: {_md(act['activity_id'])}",
-        f"- Start time: {_md(act['start_time'])}",
-        f"- Local start time: {_md(act['start_time_local'])}",
-        f"- Local date: {_md(act['local_date'])}",
-        f"- Timezone: {_md(act['timezone'])}",
-        f"- Duration: {_md_unit(act['duration_minutes'], 'minutes')}",
-        f"- Distance: {_md_unit(act['distance_km'], 'km')}",
-        f"- Laps: {_md(act['lap_count'])}",
-        f"- Trackpoints: {_md(act['trackpoint_count'])}",
+        f"- 運動：{_md(act['sport'])}",
+        f"- 活動 ID：{_md(act['activity_id'])}",
+        f"- 開始時間：{_md(act['start_time'])}",
+        f"- 本地開始時間：{_md(act['start_time_local'])}",
+        f"- 本地日期：{_md(act['local_date'])}",
+        f"- 時區：{_md(act['timezone'])}",
+        f"- 時間：{_md_unit(act['duration_minutes'], 'min')}",
+        f"- 距離：{_md_unit(act['distance_km'], 'km')}",
+        f"- Lap：{_md(act['lap_count'])}",
+        f"- Trackpoints：{_md(act['trackpoint_count'])}",
         "",
     ]
 
-    lines += ["## Key Metrics", ""]
+    lines += ["## 關鍵指標", ""]
     lines += [
-        "- Average pace: "
+        "- 平均配速："
         f"{_md(metrics['average_pace_formatted'])}",
-        "- Average heart rate: "
+        "- 平均心率："
         f"{_md_unit(metrics['average_heart_rate_bpm'], 'bpm')}",
-        "- Maximum heart rate: "
+        "- 最高心率："
         f"{_md_unit(metrics['maximum_heart_rate_bpm'], 'bpm')}",
-        "- Maximum speed: "
+        "- 最高速度："
         f"{_md_unit(metrics['maximum_speed_mps'], 'm/s')}",
-        "- Average run cadence raw: "
+        "- 平均原始跑步步頻："
         f"{_md(metrics['cadence']['avg_run_cadence_raw'])}",
-        f"- Average watts: {_md(metrics['power']['avg_watts'])}",
+        f"- 平均功率：{_md(metrics['power']['avg_watts'])}",
         "",
     ]
 
-    lines += ["## Lap Summary", ""]
+    lines += ["## Lap 摘要", ""]
     lines += _lap_table(summary["lap_summary"])
     lines.append("")
 
-    lines += ["## Computed Split Metrics", ""]
+    lines += ["## 固定公式分段指標", ""]
     lines += [
-        "- First half average pace: "
+        "- 前半段平均配速："
         f"{_md_pace(split['first_half_average_pace_seconds_per_km'])}",
-        "- Second half average pace: "
+        "- 後半段平均配速："
         f"{_md_pace(split['second_half_average_pace_seconds_per_km'])}",
-        "- Pace second-half delta: "
+        "- 配速後半段差異："
         f"{_md_unit(split['pace_second_half_delta_seconds_per_km'], 's/km')}",
-        "- First half average heart rate: "
+        "- 前半段平均心率："
         f"{_md_unit(split['first_half_average_heart_rate_bpm'], 'bpm')}",
-        "- Second half average heart rate: "
+        "- 後半段平均心率："
         f"{_md_unit(split['second_half_average_heart_rate_bpm'], 'bpm')}",
-        "- Heart-rate second-half delta: "
+        "- 心率後半段差異："
         f"{_md_unit(split['heart_rate_second_half_delta_bpm'], 'bpm')}",
-        f"- Method: {split['method']}",
-        f"- Interpretation policy: {split['interpretation_policy']}",
-        f"- Interpretation level: {split['interpretation_level']}",
+        f"- 方法：{_md(split['method'])}",
+        f"- 解讀政策：{_md(split['interpretation_policy'])}",
+        f"- 解讀層級：{_md(split['interpretation_level'])}",
         "",
     ]
 
-    lines += ["## Elevation", ""]
+    lines += ["## 高度", ""]
     lines += [
-        "- Minimum altitude: "
+        "- 最低高度："
         f"{_md_unit(metrics['min_altitude_meters'], 'm')}",
-        "- Maximum altitude: "
+        "- 最高高度："
         f"{_md_unit(metrics['max_altitude_meters'], 'm')}",
-        "- Estimated elevation gain: "
+        "- 估算爬升高度："
         f"{_md_unit(metrics['estimated_elevation_gain_meters'], 'm')}",
-        "- Elevation gain method: "
-        f"{metrics['estimated_elevation_gain_method']}",
+        "- 爬升高度計算方法："
+        f"{_md(metrics['estimated_elevation_gain_method'])}",
         "",
     ]
 
-    lines += ["## Data Quality Notes", ""]
-    lines.append(f"- Warnings: {quality['warnings_count']}")
+    lines += ["## 資料品質備註", ""]
+    lines.append(f"- 警告：{quality['warnings_count']}")
     if quality["warning_codes"]:
         codes = ", ".join(quality["warning_codes"])
-        lines.append(f"- Warning codes: {codes}")
+        lines.append(f"- 警告代碼：{codes}")
     if quality["missing_key_fields"]:
         missing = ", ".join(quality["missing_key_fields"])
-        lines.append(f"- Missing key fields: {missing}")
+        lines.append(f"- 缺失關鍵欄位：{missing}")
     lines.append(
-        f"- Trackpoints: {quality['trackpoints_count']} total, "
-        f"{quality['trackpoints_with_heart_rate_count']} with heart "
-        f"rate, {quality['trackpoints_with_distance_count']} with "
-        f"distance, {quality['trackpoints_with_altitude_count']} with "
-        f"altitude, {quality['trackpoints_with_speed_count']} with "
-        "speed."
+        f"- Trackpoints：共 {quality['trackpoints_count']} 個，"
+        f"{quality['trackpoints_with_heart_rate_count']} 個含心率，"
+        f"{quality['trackpoints_with_distance_count']} 個含距離，"
+        f"{quality['trackpoints_with_altitude_count']} 個含高度，"
+        f"{quality['trackpoints_with_speed_count']} 個含速度。"
     )
     for note in quality["notes"]:
-        lines.append(f"- {note}")
+        lines.append(f"- {_translate_note(note)}")
     lines.append("")
 
-    lines += ["## Privacy Notes", ""]
+    lines += ["## 隱私保護備註", ""]
     lines += [
-        f"- GPS policy: {privacy['gps_policy']}",
-        "- GPS coordinates are not included in this summary.",
-        "- Route details are not included in this summary.",
+        f"- GPS 政策：{_md(privacy['gps_policy'])}",
+        "- 此摘要中不包含 GPS 座標。",
+        "- 此摘要中不包含路線細節。",
         "",
     ]
 
-    lines += ["## Data Policy", ""]
+    lines += ["## 資料政策", ""]
     policy = summary["data_policy"]
     lines += [
-        f"- Source: {policy['source']}",
-        "- Workout role inference: disabled.",
-        "- Coaching advice: disabled.",
-        "- Medical interpretation: disabled.",
+        f"- 來源：{_md(policy['source'])}",
+        "- 運動角色推論：已停用。",
+        "- 教練建議：已停用。",
+        "- 醫療判斷：已停用。",
         "",
     ]
 
@@ -747,35 +746,104 @@ def _missing_activity_fields(parsed: ParsedActivity) -> list[str]:
 # --- markdown helpers --------------------------------------------------
 
 
+def _translate_value(val: object) -> str:
+    """Translate value strings to Traditional Chinese (Taiwan) for Markdown rendering."""
+    if val is None:
+        return "無資料"
+    val_str = str(val)
+    translations = {
+        "unavailable": "無資料",
+        "unavailable (not inferred)": "無資料（未推論）",
+        "placeholders only; not inferred": "僅為手動填寫欄位，未從 TCX 推論",
+        "Running": "跑步",
+        "running": "跑步",
+        "Other": "其他",
+        "other": "其他",
+        "candidate": "候選",
+        "time_gap_rule": "時間間隔規則",
+        "missing_start_time_singleton": "缺少開始時間單一活動",
+        "disabled": "已停用",
+        "not_inferred": "未推論",
+        "invalid": "無效",
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+        "missing_distance_or_duration": "缺少距離或時間資料",
+        "non_positive_distance_or_duration": "距離或時間資料非正數",
+        "lap_distance_below_0.1km": "Lap 距離低於 0.1km",
+        "lap_distance_between_0.1km_and_0.3km": "Lap 距離介於 0.1km 至 0.3km",
+        "lap_distance_at_least_0.3km": "Lap 距離至少 0.3km",
+        "split_at_cumulative_distance_midpoint": "固定累計距離中點分段",
+        "computed_metrics_only_no_training_interpretation": "僅計算指標不進行訓練解讀",
+        "limited_for_interval_or_mixed_lap_activity": "間歇或混合 Lap 活動受限",
+        "redact_start_end": "遮蔽起點與終點",
+        "redact_all": "完全遮蔽",
+        "keep": "保留",
+        "none": "無",
+    }
+    return translations.get(val_str, val_str)
+
+
+def _translate_note(note: str) -> str:
+    """Translate data quality or split notes to Traditional Chinese (Taiwan) for Markdown."""
+    translations = {
+        "This split metric is a fixed-formula summary and must not be interpreted as fatigue, workout quality, or workout type.":
+            "本分段指標僅為固定公式摘要，不得解讀為疲勞度、訓練品質或訓練類型。",
+        "Distance data is missing or insufficient for the fixed cumulative-distance midpoint split.":
+            "距離資料缺失或不足，無法計算固定累計距離中點分段。",
+        "Timestamp or distance data is missing or insufficient for half-split pace.":
+            "時間戳記或距離資料缺失或不足，無法計算後半段平均配速。",
+        "Heart rate data is missing or insufficient in at least one half.":
+            "至少有一半的區段心率資料缺失或不足。",
+        "No trackpoints are available.":
+            "無 trackpoint 軌跡點資料。",
+        "Fewer than two altitude readings; elevation gain cannot be estimated.":
+            "高度讀數少於兩個，無法估算爬升高度。",
+        "Some key fields are missing; see missing_key_fields.":
+            "部分關鍵欄位缺失，請參閱 missing_key_fields。",
+        "Activities with missing start_time are separate session candidates.":
+            "缺少 start_time 的活動將作為獨立的 Session Candidate 候選分組。",
+        "Missing start_time prevents grouping with other activities.":
+            "缺少 start_time，無法與其他活動進行分組。",
+        "At least one activity has missing distance data.":
+            "至少有一個活動缺少距離資料。",
+        "At least one activity has missing duration data.":
+            "至少有一個活動缺少時間資料。",
+    }
+    return translations.get(note, note)
+
+
 def _md(value: object) -> str:
-    """Render a value for Markdown; ``None`` becomes ``unavailable``."""
+    """Render a value for Markdown; ``None`` becomes ``無資料``, other strings translated."""
     if value is None:
-        return "unavailable"
-    return str(value)
+        return "無資料"
+    return _translate_value(value)
 
 
 def _md_unit(value: object, unit: str) -> str:
-    """Render a value with a unit suffix, or ``unavailable``."""
+    """Render a value with a unit suffix, or ``無資料``."""
     if value is None:
-        return "unavailable"
+        return "無資料"
+    if unit == "minutes":
+        unit = "min"
     return f"{value} {unit}"
 
 
 def _md_pace(value: float | None) -> str:
     """Render half-split pace seconds with its formatted twin."""
     if value is None:
-        return "unavailable"
+        return "無資料"
     return f"{value} s/km ({_format_pace(value)})"
 
 
 def _lap_table(lap_summary: list[dict]) -> list[str]:
     """Render the lap summary as Markdown table lines."""
     if not lap_summary:
-        return ["No lap data is available."]
+        return ["無 Lap 資料。"]
     header = (
-        "| Lap | Start time | Duration (min) | Distance (km) "
-        "| Pace | Pace reliability | Reliability reason | Avg HR "
-        "| Max HR | Max speed (m/s) | Avg cadence raw | Avg watts |"
+        "| Lap | 開始時間 | 時間 (min) | 距離 (km) "
+        "| 配速 | 配速可信度 | 可信度原因 | 平均心率 "
+        "| 最高心率 | 最高速度 (m/s) | 平均原始步頻 | 平均功率 |"
     )
     divider = "|---|---|---|---|---|---|---|---|---|---|---|---|"
     rows = [header, divider]

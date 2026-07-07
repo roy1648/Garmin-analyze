@@ -70,21 +70,23 @@ def test_render_coach_handoff_markdown() -> None:
     md = render_coach_handoff_markdown(bundle)
 
     # 1. Check title and instruction
-    assert "# TCX Coach Handoff" in md
-    assert "這是多活動報告，每個 TCX 活動在報告中皆保持獨立紀錄。" in md
+    assert "# TCX 教練交接報告" in md
+    assert "這是多活動報告，每個 TCX 活動在報告中皆保持獨立紀錄；不代表多個 TCX 被合併成一堂訓練。" in md
 
     # 2. Check manual context empty fields
-    assert "- Planned Workout:" in md
-    assert "- RPE:" in md
-    assert "- Pain Before / During / After:" in md
-    assert "- Next Day Status:" in md
-    assert "- Notes:" in md
+    assert "- 預定課表：" in md
+    assert "- RPE：" in md
+    assert "- 跑前疼痛：" in md
+    assert "- 跑中疼痛：" in md
+    assert "- 跑後疼痛：" in md
+    assert "- 隔日狀態：" in md
+    assert "- 補充說明：" in md
 
     # 3. Check that it contains session bundle content
-    assert "# TCX Multi-Activity Report" in md
-    assert "## Data Policy" in md
-    assert "## Export Scope" in md
-    assert "## Session Candidates" in md
+    assert "# TCX 多活動報告" in md
+    assert "## 資料政策" in md
+    assert "## 輸出範圍" in md
+    assert "## Session Candidate 候選分組" in md
 
     # 4. Check safety rules (no GPS, no interpretations/coaching advice)
     assert "latitude" not in md
@@ -112,4 +114,4 @@ def test_write_coach_handoff_markdown(tmp_path: Path) -> None:
     assert expected_path.is_file()
 
     content = expected_path.read_text(encoding="utf-8")
-    assert "# TCX Coach Handoff" in content
+    assert "# TCX 教練交接報告" in content
