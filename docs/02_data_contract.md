@@ -45,6 +45,11 @@ session_bundle/
 不論輸入是單一 TCX 或多個 TCX，都必須輸出同一組 session bundle
 artifacts。單一 TCX 的 `export_scope` 範例如下：
 
+術語說明：`session_bundle` 是 report/package format，可包含一個或多個
+activity records，以及一個或多個 session candidates。它不代表多個 TCX
+已被合併成一堂訓練；每個 TCX activity identity 必須保留，session
+candidate 只表示候選分組。
+
 ```json
 {
   "type": "session_bundle",
@@ -278,7 +283,7 @@ Cadence 與 power 是 optional Garmin extensions，缺漏時不得列入
 
 `session_bundle.md` 必須包含：
 
-- `# TCX Session Bundle`
+- `# TCX Multi-Activity Report`
 - `## Data Policy`
 - `## Export Scope`
 - `## Session Candidates`
@@ -290,6 +295,10 @@ Cadence 與 power 是 optional Garmin extensions，缺漏時不得列入
 
 Data Policy 需明示：
 
+- This report packages one or more TCX activities for AI-readable review.
+  It does not merge them into one recorded workout.
+- Session candidates are candidate activity groups for review; they do not
+  merge activities into one recorded workout.
 - Manual context fields are placeholders only and were not inferred from TCX.
 - Cadence values are raw Garmin RunCadence values; no cadence x2 conversion is applied.
 

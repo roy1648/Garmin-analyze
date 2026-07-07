@@ -41,6 +41,13 @@ PROHIBITED_ROLES = (
     "main set",
     "collapse",
 )
+MISLEADING_REPORT_WORDING = (
+    "merged workout",
+    "merged session",
+    "combined workout",
+    "合併成一堂訓練",
+    "合併成一堂課",
+)
 
 
 def _activity(
@@ -372,8 +379,17 @@ def test_markdown_has_fixed_sections_and_no_sensitive_content() -> None:
     markdown = render_session_bundle_markdown(
         build_session_bundle([_activity("one.tcx", START)])
     )
+    lines = markdown.splitlines()
+    assert lines[0] == "# TCX Multi-Activity Report"
+    assert (
+        "does not merge them into one recorded workout"
+        in markdown
+    )
+    assert (
+        "Session candidates are candidate activity groups for review"
+        in markdown
+    )
     for heading in (
-        "# TCX Session Bundle",
         "## Data Policy",
         "## Export Scope",
         "## Session Candidates",
@@ -390,6 +406,8 @@ def test_markdown_has_fixed_sections_and_no_sensitive_content() -> None:
     assert "longitude" not in lowered
     for role in PROHIBITED_ROLES:
         assert role not in lowered
+    for phrase in MISLEADING_REPORT_WORDING:
+        assert phrase not in lowered
 
 
 def test_negative_gap_is_rejected() -> None:

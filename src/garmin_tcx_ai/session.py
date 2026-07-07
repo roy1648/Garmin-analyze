@@ -105,11 +105,16 @@ def render_session_bundle_markdown(bundle: dict) -> str:
     quality = bundle["data_quality"]
     privacy = bundle["privacy"]
     lines = [
-        "# TCX Session Bundle",
+        "# TCX Multi-Activity Report",
+        "",
+        "This report packages one or more TCX activities for AI-readable "
+        "review. It does not merge them into one recorded workout.",
         "",
         "## Data Policy",
         "",
         "- Session grouping is a candidate, not a recorded fact.",
+        "- Session candidates are candidate activity groups for review; "
+        "they do not merge activities into one recorded workout.",
         "- Role inference is disabled.",
         "- Activity role is not inferred.",
         f"- Workout role inference disabled: "

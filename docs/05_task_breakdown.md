@@ -170,14 +170,17 @@ scope creep。
 - HR zone / time in zone。
 - AI coaching、training interpretation 或 role inference。
 
-## Phase 10：Acceptance 與 Smoke 文件化（後續）
+## Phase 10：Report wording hardening / local smoke documentation
 
 目標：
 
 - 持續讓 `docs/03_acceptance_tests.md` 對應 pytest cases。
+- 強化 report wording，避免暗示多個 TCX 被合併成一堂訓練。
 
 完成條件：
 
 - Tests 不依賴 private local samples。
+- Report wording avoids implying that multiple TCX files are merged into one
+  workout.
 - Real-data smoke test 只使用 local ignored path。
 - Smoke output 不 commit。

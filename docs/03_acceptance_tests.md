@@ -31,6 +31,8 @@ AI coach-facing 標準輸出為：
 - 單一 activity 時 `session_candidate_count == 1`。
 - 單一 activity 時 `contains_multiple_activities is False`。
 - 多個 activity 仍保留每個 TCX 的 activity identity。
+- 多個 activity 是整理進同一份多活動報告／資料包，不表示多個 TCX
+  被合併成一堂訓練。
 - JSON top-level schema 完整。
 
 ## 3. No-Inference Policy
@@ -136,7 +138,7 @@ Lap summary 必須驗證：
 
 `session_bundle.md` 必須包含：
 
-- `# TCX Session Bundle`
+- `# TCX Multi-Activity Report`
 - `## Data Policy`
 - `## Export Scope`
 - `## Session Candidates`
@@ -148,6 +150,12 @@ Lap summary 必須驗證：
 
 必須顯示：
 
+- Report title must not imply that multiple TCX files were merged into one
+  workout.
+- Markdown must state that session candidates are candidate activity groups,
+  not one recorded workout.
+- This report packages one or more TCX activities for AI-readable review.
+  It does not merge them into one recorded workout.
 - Manual context fields are placeholders only and were not inferred from TCX.
 - Cadence values are raw Garmin RunCadence values; no cadence x2 conversion is applied.
 - Local date。
