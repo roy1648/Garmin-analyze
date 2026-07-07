@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from garmin_tcx_ai.pipeline import BundleRunConfig, run_bundle
 from garmin_tcx_ai.ui_helpers import (
@@ -16,8 +17,6 @@ from garmin_tcx_ai.ui_helpers import (
     open_folder,
     output_file_status,
     read_output_text,
-    select_file_dialog,
-    select_folder_dialog,
 )
 
 
@@ -37,7 +36,7 @@ def render_copy_button(label: str, text: str, key: str) -> None:
     text_json = json.dumps(text)
     key_safe = html.escape(key)
 
-    st.iframe(
+    components.html(
         f"""
         <button id="copy-{key_safe}" style="
             background: linear-gradient(135deg, #4f46e5, #0891b2);
@@ -139,42 +138,21 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    # Initialize stable default values in session state
+    # Initialize stable default output folder in session state
     if "default_output" not in st.session_state:
         st.session_state.default_output = str(default_output_dir())
-    if "input_path_val" not in st.session_state:
-        st.session_state.input_path_val = ""
-    if "output_path_val" not in st.session_state:
-        st.session_state.output_path_val = st.session_state.default_output
 
     col1, col2 = st.columns([1, 1], gap="large")
 
     with col1:
         st.subheader("參數設定")
 
-        # Basic Section with native dialog pickers inline
-        col_in_text, col_in_btn_file, col_in_btn_dir = st.columns(
-            [3, 1, 1], vertical_alignment="bottom"
+        # Basic Section
+        input_path_str = st.text_input(
+            "Input path (TCX 檔案或資料夾路徑)",
+            value="",
+            help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
         )
-        with col_in_text:
-            input_path_str = st.text_input(
-                "Input path (TCX 檔案或資料夾路徑)",
-                value=st.session_state.input_path_val,
-                help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
-            )
-            st.session_state.input_path_val = input_path_str
-        with col_in_btn_file:
-            if st.button("選擇檔案", key="btn_select_file"):
-                selected = select_file_dialog()
-                if selected:
-                    st.session_state.input_path_val = selected
-                    st.rerun()
-        with col_in_btn_dir:
-            if st.button("選擇資料夾", key="btn_select_dir_in"):
-                selected = select_folder_dialog()
-                if selected:
-                    st.session_state.input_path_val = selected
-                    st.rerun()
 
         # Immediate input path check
         status = inspect_input_path(input_path_str)
@@ -186,26 +164,14 @@ def main() -> None:
             else:
                 st.error(status.message)
 
-        col_out_text, col_out_btn = st.columns(
-            [4, 1], vertical_alignment="bottom"
+        output_dir_str = st.text_input(
+            "Output folder (輸出資料夾)",
+            value=st.session_state.default_output,
+            help="轉換後的結果儲存目錄。留空將使用自動產生的預設資料夾。",
         )
-        with col_out_text:
-            output_dir_str = st.text_input(
-                "Output folder (輸出資料夾)",
-                value=st.session_state.output_path_val,
-                help="轉換後的結果儲存目錄。留空將使用自動產生的預設資料夾。",
-            )
-            st.session_state.output_path_val = output_dir_str
-        with col_out_btn:
-            if st.button("選擇資料夾", key="btn_select_dir_out"):
-                selected = select_folder_dialog()
-                if selected:
-                    st.session_state.output_path_val = selected
-                    st.rerun()
 
         if st.button("重新產生預設輸出資料夾"):
             st.session_state.default_output = str(default_output_dir())
-            st.session_state.output_path_val = st.session_state.default_output
             st.rerun()
 
         st.markdown("**輸出選項**")
@@ -392,16 +358,24 @@ def main() -> None:
             st.markdown("---")
             st.markdown("### 輸出檔案預覽")
 
+            sb_json_text = read_output_text(res.session_bundle_json_path)
             sb_md_text = read_output_text(res.session_bundle_markdown_path)
             ch_md_text = read_output_text(res.coach_handoff_markdown_path)
 
-            tab1, tab2 = st.tabs(["session_bundle.md", "coach_handoff.md"])
+            tab1, tab2, tab3 = st.tabs(
+                ["session_bundle.json", "session_bundle.md", "coach_handoff.md"]
+            )
             with tab1:
+                if sb_json_text:
+                    st.code(sb_json_text, language="json")
+                else:
+                    st.write("未產生")
+            with tab2:
                 if sb_md_text:
                     st.markdown(sb_md_text)
                 else:
                     st.write("未產生")
-            with tab2:
+            with tab3:
                 if ch_md_text:
                     st.markdown(ch_md_text)
                 else:

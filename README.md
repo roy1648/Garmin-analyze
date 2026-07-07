@@ -81,13 +81,13 @@ uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
 
 使用流程：
 
-1. 在 Input path 欄位，可直接輸入路徑，或點擊旁邊的「選擇檔案」/「選擇資料夾」按鈕，透過本機檔案選取器選擇輸入來源。
+1. 在 Input path 輸入單一 `.tcx` 檔案路徑，或包含 `.tcx` 的資料夾路徑。
 2. UI 會先檢查路徑是否存在，以及可偵測到幾個 TCX 檔案。
-3. 確認或重新產生 output folder。您也可以點擊「選擇資料夾」按鈕以選取特定的輸出目錄。
+3. 確認或重新產生 output folder。
 4. 一般情況只需要保留預設參數。
 5. 需要時再展開「進階設定」調整 GPS policy、timezone、max gap minutes 或 atomic artifacts。
 6. 按下「開始轉換」。
-7. 轉換成功後，可在頁面最下方以完整寬度預覽 `session_bundle.md` 與 `coach_handoff.md`。
+7. 轉換成功後，可在頁面最下方以完整寬度與長度預覽 `session_bundle.json`、`session_bundle.md` 與 `coach_handoff.md`。
 
 輸出結果操作：
 - 可複製 `session_bundle.json` 全文。

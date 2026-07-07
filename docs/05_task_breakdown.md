@@ -338,8 +338,7 @@ scope creep。
 - 讓使用者可直接複製三份輸出檔全文。
 - 移除 Markdown download buttons。
 - 新增打開輸出資料夾按鈕。
-- 整合 OS 本機檔案與資料夾選取器（基於 `tkinter`）至輸入與輸出路徑設定中。
-- 將 Markdown 預覽區調整為頁面最下方的滿版寬度且完整顯示。
+- 將預覽區調整為頁面最下方的滿版寬度且完整顯示。
 
 完成條件：
 - 可複製 `session_bundle.json`。
@@ -347,8 +346,7 @@ scope creep。
 - 可複製 `coach_handoff.md`。
 - 可嘗試打開 output folder。
 - output folder 開啟失敗時不會讓 UI crash。
-- 可透過 UI 的「選擇檔案」和「選擇資料夾」按鈕開啟本機對話框選擇路徑。
-- 頁面下方以寬版且完整長度（無內部滾動限制）預覽兩個 Markdown 檔案。
+- 頁面下方以寬版且完整長度（無內部滾動限制）預覽三個輸出檔案（JSON、Markdown、Coach Handoff）。
 - 保留 output path 顯示。
 - 新增 helper tests。
 - 不新增 dependency。

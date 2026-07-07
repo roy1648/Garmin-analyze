@@ -14,8 +14,6 @@ from garmin_tcx_ai.ui_helpers import (
     output_file_status,
     read_output_text,
     read_text_if_exists,
-    select_file_dialog,
-    select_folder_dialog,
 )
 
 
@@ -215,51 +213,3 @@ def test_open_folder_nonexistent_or_not_dir(tmp_path: Path) -> None:
     res2 = open_folder(temp_file)
     assert not res2.success
     assert "路徑不存在或不是資料夾" in res2.message
-
-
-def test_select_file_dialog_mocked(monkeypatch) -> None:
-    """Test select_file_dialog returns mocked file path."""
-    import tkinter.filedialog
-
-    monkeypatch.setattr(
-        tkinter.filedialog, "askopenfilename", lambda **kwargs: "mocked_file.tcx"
-    )
-    # Mock Tk to prevent actual window creation
-    class MockTk:
-        def withdraw(self):
-            pass
-
-        def wm_attributes(self, *args):
-            pass
-
-        def destroy(self):
-            pass
-
-    import tkinter
-    monkeypatch.setattr(tkinter, "Tk", MockTk)
-
-    assert select_file_dialog() == "mocked_file.tcx"
-
-
-def test_select_folder_dialog_mocked(monkeypatch) -> None:
-    """Test select_folder_dialog returns mocked directory path."""
-    import tkinter.filedialog
-
-    monkeypatch.setattr(
-        tkinter.filedialog, "askdirectory", lambda **kwargs: "mocked_dir"
-    )
-    # Mock Tk
-    class MockTk:
-        def withdraw(self):
-            pass
-
-        def wm_attributes(self, *args):
-            pass
-
-        def destroy(self):
-            pass
-
-    import tkinter
-    monkeypatch.setattr(tkinter, "Tk", MockTk)
-
-    assert select_folder_dialog() == "mocked_dir"
