@@ -258,3 +258,40 @@ scope creep。
 - 新增 pipeline unit tests。
 - 不新增 UI、不新增依賴、不修改 parser/normalizer/exporter/session contract。
 
+
+## Phase 16：Minimal Streamlit Local UI
+
+目標：
+- 新增本機 Streamlit UI，降低日常操作門檻。
+- UI 呼叫 PR #15 抽出的 shared pipeline use case。
+- 保留 CLI 作為自動化與工程入口。
+
+完成條件：
+- 新增 `ui_streamlit.py`。
+- UI 可輸入 TCX 檔案或資料夾路徑。
+- UI 可設定 GPS policy、timezone、max gap minutes、coach handoff 與 atomic artifacts。
+- UI 可呼叫 `run_bundle()` 執行轉換。
+- UI 可顯示 success / error / warnings / output paths。
+- UI 可預覽 `session_bundle.md` 與 `coach_handoff.md`。
+- 新增不依賴 Streamlit runtime 的 helper tests。
+- 不修改 parser/normalizer/exporter/session contract。
+
+非目標：
+- 不做登入。
+- 不做 Garmin Connect API。
+- 不做資料庫。
+- 不做雲端同步。
+- 不做圖表分析。
+- 不做 AI coaching。
+- 不做 medical interpretation。
+- 不做 HR zone。
+- 不做 Garmin zone。
+- 不做課表角色推論。
+- 不做 planned workout matching。
+- 不做 EXE 打包。
+- 不做系統托盤。
+- 不做自動開啟檔案總管。
+- 不做多頁式完整產品 UI。
+- 不新增除 Streamlit 以外的 dependencies。
+
+

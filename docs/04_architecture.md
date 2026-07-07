@@ -144,6 +144,26 @@ CLI 不加入任何 business logic 或核心資料推論。
 - CLI and future local UI must call `run_bundle()` instead of duplicating orchestration logic.
 
 
+### 2.9 `ui_streamlit.py` & `ui_helpers.py`
+
+責任：
+
+- `ui_streamlit.py` 是 post-MVP local UX layer，提供本機表單操作介面。
+- 收集 input path、output path、GPS policy、timezone、max gap minutes 與輸出選項。
+- 呼叫 `pipeline.run_bundle()` 執行整個轉換流程。
+- 顯示 structured result、warnings、output paths 與 Markdown 預覽。
+- `ui_helpers.py` 提供不依賴 Streamlit runtime 的純 Python 輔助函式，便於進行單元測試。
+
+限制：
+
+- UI 不直接解析 TCX。
+- UI 不修改資料契約。
+- UI 不輸出 AI coaching、medical interpretation、role inference。
+- UI 不上傳任何資料至外部服務。
+- UI 僅限本機執行。
+
+
+
 ## 3. Session Bundle API
 
 ```python
