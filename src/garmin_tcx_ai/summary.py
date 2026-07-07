@@ -9,65 +9,54 @@ not produce coaching or medical interpretation.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from garmin_tcx_ai.models import Lap, ParsedActivity, Trackpoint
 
-# Relative pace / heart-rate change required to leave the "stable" label.
-TREND_THRESHOLD = 0.03
-
-# Allowed trend labels (see docs/02_data_contract.md section 5.2).
-TREND_FASTER_LATER = "faster_later"
-TREND_SLOWER_LATER = "slower_later"
-TREND_STABLE = "stable"
-TREND_INSUFFICIENT = "insufficient_data"
-
-_TREND_METHOD = (
-    "Halves are split at the cumulative-distance midpoint. A half must "
-    "be more than 3% faster (pace) or higher (heart rate) than the "
-    "other to leave 'stable'. Fields are 'insufficient_data' when the "
-    "required distance, timestamp, or heart rate data is missing."
+_SPLIT_METHOD = "split_at_cumulative_distance_midpoint"
+_SPLIT_POLICY = "computed_metrics_only_no_training_interpretation"
+_SPLIT_INTERPRETATION_LEVEL = (
+    "limited_for_interval_or_mixed_lap_activity"
 )
-
-_SUGGESTED_QUESTIONS = [
-    "How consistent was the pacing across the activity, and where "
-    "did the largest pace changes occur?",
-    "Is there evidence of heart rate drift between the first and "
-    "second half at a similar pace?",
-    "How consistent are the lap paces, durations, and heart rates "
-    "compared with each other?",
-    "Do the data quality notes (missing fields or warnings) reduce "
-    "confidence in any of the reported metrics?",
-]
+_SPLIT_DISCLAIMER = (
+    "This split metric is a fixed-formula summary and must not be "
+    "interpreted as fatigue, workout quality, or workout type."
+)
+_ELEVATION_GAIN_METHOD = "sum_positive_consecutive_altitude_deltas"
 
 
-def build_ai_summary(activity: ParsedActivity) -> dict:
+def build_ai_summary(
+    activity: ParsedActivity,
+    timezone_name: str = "Asia/Taipei",
+) -> dict:
     """Build an AI-ready factual summary for a normalized Running
     activity.
 
     Returns a JSON-serializable dict with the top-level keys
     ``activity_summary``, ``key_metrics``, ``lap_summary``,
-    ``trend_summary``, ``privacy``, ``data_quality`` and ``ai_context``.
+    ``computed_split_metrics``, ``privacy``, ``data_quality`` and
+    ``data_policy``.
     Missing values are ``None`` and datetimes are ISO 8601 strings. GPS
     coordinates and route details are never included.
     """
-    activity_summary = _activity_summary(activity)
+    zone = _timezone(timezone_name)
+    activity_summary = _activity_summary(activity, zone, timezone_name)
     key_metrics = _key_metrics(activity)
-    lap_summary = [_lap_entry(lap) for lap in activity.laps]
-    trend_summary = _trend_summary(activity)
+    lap_summary = [
+        _lap_entry(lap, activity.trackpoints) for lap in activity.laps
+    ]
+    split_metrics = _computed_split_metrics(activity)
     privacy = _privacy_summary(activity)
     data_quality = _data_quality(activity)
-    ai_context = _ai_context(
-        activity_summary, key_metrics, trend_summary, privacy
-    )
     return {
         "activity_summary": activity_summary,
         "key_metrics": key_metrics,
         "lap_summary": lap_summary,
-        "trend_summary": trend_summary,
+        "computed_split_metrics": split_metrics,
         "privacy": privacy,
         "data_quality": data_quality,
-        "ai_context": ai_context,
+        "data_policy": _data_policy(),
     }
 
 
@@ -81,7 +70,7 @@ def render_ai_summary_markdown(summary: dict) -> str:
     """
     act = summary["activity_summary"]
     metrics = summary["key_metrics"]
-    trend = summary["trend_summary"]
+    split = summary["computed_split_metrics"]
     privacy = summary["privacy"]
     quality = summary["data_quality"]
 
@@ -92,6 +81,9 @@ def render_ai_summary_markdown(summary: dict) -> str:
         f"- Sport: {_md(act['sport'])}",
         f"- Activity ID: {_md(act['activity_id'])}",
         f"- Start time: {_md(act['start_time'])}",
+        f"- Local start time: {_md(act['start_time_local'])}",
+        f"- Local date: {_md(act['local_date'])}",
+        f"- Timezone: {_md(act['timezone'])}",
         f"- Duration: {_md_unit(act['duration_minutes'], 'minutes')}",
         f"- Distance: {_md_unit(act['distance_km'], 'km')}",
         f"- Laps: {_md(act['lap_count'])}",
@@ -109,6 +101,9 @@ def render_ai_summary_markdown(summary: dict) -> str:
         f"{_md_unit(metrics['maximum_heart_rate_bpm'], 'bpm')}",
         "- Maximum speed: "
         f"{_md_unit(metrics['maximum_speed_mps'], 'm/s')}",
+        "- Average run cadence raw: "
+        f"{_md(metrics['cadence']['avg_run_cadence_raw'])}",
+        f"- Average watts: {_md(metrics['power']['avg_watts'])}",
         "",
     ]
 
@@ -116,24 +111,23 @@ def render_ai_summary_markdown(summary: dict) -> str:
     lines += _lap_table(summary["lap_summary"])
     lines.append("")
 
-    lines += ["## Pace Trend", ""]
+    lines += ["## Computed Split Metrics", ""]
     lines += [
-        f"- Trend: {trend['pace_trend']}",
         "- First half average pace: "
-        f"{_md_pace(trend['first_half_average_pace_seconds_per_km'])}",
+        f"{_md_pace(split['first_half_average_pace_seconds_per_km'])}",
         "- Second half average pace: "
-        f"{_md_pace(trend['second_half_average_pace_seconds_per_km'])}",
-        f"- Method: {trend['method']}",
-        "",
-    ]
-
-    lines += ["## Heart Rate Trend", ""]
-    lines += [
-        f"- Trend: {trend['heart_rate_trend']}",
+        f"{_md_pace(split['second_half_average_pace_seconds_per_km'])}",
+        "- Pace second-half delta: "
+        f"{_md_unit(split['pace_second_half_delta_seconds_per_km'], 's/km')}",
         "- First half average heart rate: "
-        f"{_md_unit(trend['first_half_average_heart_rate_bpm'], 'bpm')}",
+        f"{_md_unit(split['first_half_average_heart_rate_bpm'], 'bpm')}",
         "- Second half average heart rate: "
-        f"{_md_unit(trend['second_half_average_heart_rate_bpm'], 'bpm')}",
+        f"{_md_unit(split['second_half_average_heart_rate_bpm'], 'bpm')}",
+        "- Heart-rate second-half delta: "
+        f"{_md_unit(split['heart_rate_second_half_delta_bpm'], 'bpm')}",
+        f"- Method: {split['method']}",
+        f"- Interpretation policy: {split['interpretation_policy']}",
+        f"- Interpretation level: {split['interpretation_level']}",
         "",
     ]
 
@@ -145,6 +139,8 @@ def render_ai_summary_markdown(summary: dict) -> str:
         f"{_md_unit(metrics['max_altitude_meters'], 'm')}",
         "- Estimated elevation gain: "
         f"{_md_unit(metrics['estimated_elevation_gain_meters'], 'm')}",
+        "- Elevation gain method: "
+        f"{metrics['estimated_elevation_gain_method']}",
         "",
     ]
 
@@ -176,9 +172,15 @@ def render_ai_summary_markdown(summary: dict) -> str:
         "",
     ]
 
-    lines += ["## Suggested AI Analysis Questions", ""]
-    lines += [f"- {q}" for q in _SUGGESTED_QUESTIONS]
-    lines.append("")
+    lines += ["## Data Policy", ""]
+    policy = summary["data_policy"]
+    lines += [
+        f"- Source: {policy['source']}",
+        "- Workout role inference: disabled.",
+        "- Coaching advice: disabled.",
+        "- Medical interpretation: disabled.",
+        "",
+    ]
 
     return "\n".join(lines)
 
@@ -186,13 +188,23 @@ def render_ai_summary_markdown(summary: dict) -> str:
 # --- section builders -------------------------------------------------
 
 
-def _activity_summary(parsed: ParsedActivity) -> dict:
+def _activity_summary(
+    parsed: ParsedActivity,
+    zone: tzinfo,
+    timezone_name: str,
+) -> dict:
     """Build the ``activity_summary`` section."""
     activity = parsed.activity
+    local_start = _local_time(activity.start_time, zone)
     return {
         "sport": activity.sport,
         "activity_id": activity.activity_id,
         "start_time": _iso(activity.start_time),
+        "start_time_local": _iso_offset(local_start),
+        "timezone": timezone_name,
+        "local_date": (
+            local_start.date().isoformat() if local_start else None
+        ),
         "duration_minutes": _minutes(activity.total_time_seconds),
         "distance_km": _km(activity.distance_meters),
         "lap_count": len(parsed.laps),
@@ -218,14 +230,30 @@ def _key_metrics(parsed: ParsedActivity) -> dict:
         "min_altitude_meters": min_alt,
         "max_altitude_meters": max_alt,
         "estimated_elevation_gain_meters": gain,
+        "estimated_elevation_gain_method": _ELEVATION_GAIN_METHOD,
         "lap_count": len(parsed.laps),
+        "cadence": _cadence_metrics(
+            parsed.trackpoints,
+            "tcx_extension_RunCadence_or_normalized_trackpoint",
+        ),
+        "power": _power_metrics(
+            parsed.trackpoints,
+            "tcx_extension_Watts_or_normalized_trackpoint",
+        ),
     }
 
 
-def _lap_entry(lap: Lap) -> dict:
+def _lap_entry(lap: Lap, trackpoints: list[Trackpoint]) -> dict:
     """Build one ``lap_summary`` entry."""
     pace = _pace_seconds_per_km(
         lap.total_time_seconds, lap.distance_meters
+    )
+    lap_trackpoints = [
+        point for point in trackpoints if point.lap_index == lap.lap_index
+    ]
+    reliability, reason = _pace_reliability(
+        lap.distance_meters,
+        lap.total_time_seconds,
     )
     return {
         "lap_index": lap.lap_index,
@@ -237,35 +265,45 @@ def _lap_entry(lap: Lap) -> dict:
         "average_heart_rate_bpm": lap.average_heart_rate_bpm,
         "maximum_heart_rate_bpm": lap.maximum_heart_rate_bpm,
         "maximum_speed_mps": lap.maximum_speed_mps,
+        "pace_reliability": reliability,
+        "reliability_reason": reason,
+        "cadence": _cadence_metrics(
+            lap_trackpoints,
+            "normalized_trackpoints_by_lap",
+        ),
+        "power": _power_metrics(
+            lap_trackpoints,
+            "normalized_trackpoints_by_lap",
+        ),
+        "role": None,
+        "role_source": "not_inferred",
     }
 
 
-def _trend_summary(parsed: ParsedActivity) -> dict:
-    """Build the ``trend_summary`` section.
-
-    Trackpoints are split into halves at the cumulative-distance
-    midpoint. Pace uses timestamp and distance spans within each half;
-    heart rate uses the average of valid readings within each half. A
-    3% threshold separates ``faster_later`` / ``slower_later`` from
-    ``stable``; missing data yields ``insufficient_data``.
-    """
-    notes: list[str] = []
+def _computed_split_metrics(parsed: ParsedActivity) -> dict:
+    """Build neutral first/second-half metrics using fixed formulas."""
+    notes = [_SPLIT_DISCLAIMER]
     result = {
-        "pace_trend": TREND_INSUFFICIENT,
-        "heart_rate_trend": TREND_INSUFFICIENT,
+        "method": _SPLIT_METHOD,
+        "interpretation_policy": _SPLIT_POLICY,
+        "interpretation_level": _SPLIT_INTERPRETATION_LEVEL,
         "first_half_average_pace_seconds_per_km": None,
         "second_half_average_pace_seconds_per_km": None,
+        "pace_second_half_delta_seconds_per_km": None,
         "first_half_average_heart_rate_bpm": None,
         "second_half_average_heart_rate_bpm": None,
-        "method": _TREND_METHOD,
+        "heart_rate_second_half_delta_bpm": None,
+        "pace_data_available": False,
+        "heart_rate_data_available": False,
+        "data_available": False,
         "notes": notes,
     }
 
     midpoint = _distance_midpoint(parsed)
     if midpoint is None:
         notes.append(
-            "Distance data is insufficient to split the activity "
-            "into halves; trends are 'insufficient_data'."
+            "Distance data is missing or insufficient for the fixed "
+            "cumulative-distance midpoint split."
         )
         return result
 
@@ -294,11 +332,14 @@ def _trend_summary(parsed: ParsedActivity) -> dict:
         second_pace
     )
     if first_pace is not None and second_pace is not None:
-        result["pace_trend"] = _pace_trend(first_pace, second_pace)
+        result["pace_second_half_delta_seconds_per_km"] = _round1(
+            second_pace - first_pace
+        )
+        result["pace_data_available"] = True
     else:
         notes.append(
-            "Timestamp or distance data is insufficient to compute "
-            "half-split pace; pace trend is 'insufficient_data'."
+            "Timestamp or distance data is missing or insufficient "
+            "for half-split pace."
         )
 
     first_hr = _segment_heart_rate(first_half)
@@ -306,15 +347,20 @@ def _trend_summary(parsed: ParsedActivity) -> dict:
     result["first_half_average_heart_rate_bpm"] = _round1(first_hr)
     result["second_half_average_heart_rate_bpm"] = _round1(second_hr)
     if first_hr is not None and second_hr is not None:
-        result["heart_rate_trend"] = _heart_rate_trend(
-            first_hr, second_hr
+        result["heart_rate_second_half_delta_bpm"] = _round1(
+            second_hr - first_hr
         )
+        result["heart_rate_data_available"] = True
     else:
         notes.append(
-            "Heart rate data is insufficient in at least one half; "
-            "heart rate trend is 'insufficient_data'."
+            "Heart rate data is missing or insufficient in at least "
+            "one half."
         )
 
+    result["data_available"] = (
+        result["pace_data_available"]
+        and result["heart_rate_data_available"]
+    )
     return result
 
 
@@ -347,6 +393,8 @@ def _data_quality(parsed: ParsedActivity) -> dict:
     speed_count = _coverage(trackpoints, "speed_mps")
     altitude_count = _coverage(trackpoints, "altitude_meters")
     timestamp_count = _coverage(trackpoints, "timestamp")
+    cadence_count = _coverage(trackpoints, "run_cadence_spm")
+    power_count = _coverage(trackpoints, "power_watts")
 
     missing = _missing_activity_fields(parsed)
     trackpoint_coverage = {
@@ -382,40 +430,30 @@ def _data_quality(parsed: ParsedActivity) -> dict:
         "trackpoints_with_distance_count": distance_count,
         "trackpoints_with_speed_count": speed_count,
         "trackpoints_with_altitude_count": altitude_count,
+        "trackpoints_with_run_cadence_count": cadence_count,
+        "trackpoints_with_power_count": power_count,
         "notes": notes,
     }
 
 
-def _ai_context(
-    activity_summary: dict,
-    key_metrics: dict,
-    trend_summary: dict,
-    privacy: dict,
-) -> str:
-    """Build the ``ai_context`` factual text block."""
-    parts = [
-        "This is a factual summary of a Running activity parsed "
-        "from a Garmin TCX export; it is intended as input for "
-        "further data analysis.",
-        f"Duration: {_md(activity_summary['duration_minutes'])} "
-        "minutes.",
-        f"Distance: {_md(activity_summary['distance_km'])} km.",
-        "Average pace: "
-        f"{_md(key_metrics['average_pace_formatted'])}.",
-        "Average heart rate: "
-        f"{_md(key_metrics['average_heart_rate_bpm'])} bpm.",
-        f"Laps: {activity_summary['lap_count']}.",
-        f"Pace trend: {trend_summary['pace_trend']}.",
-        f"Heart rate trend: {trend_summary['heart_rate_trend']}.",
-        f"GPS policy: {privacy['gps_policy']}; GPS coordinates and "
-        "route details are excluded from this summary.",
-        "This summary contains no coaching advice and no medical "
-        "interpretation.",
-    ]
-    return " ".join(parts)
+def _data_policy() -> dict:
+    """Return the source and no-inference policy for summary data."""
+    return {
+        "source": "tcx_file",
+        "allowed_content": [
+            "raw_tcx_fields",
+            "fixed_formula_metrics",
+            "data_quality_flags",
+            "privacy_policy",
+        ],
+        "no_workout_role_inference": True,
+        "no_coaching_advice": True,
+        "no_medical_interpretation": True,
+        "manual_context_fields_are_placeholders": True,
+    }
 
 
-# --- trend helpers -----------------------------------------------------
+# --- split helpers -----------------------------------------------------
 
 
 def _distance_midpoint(parsed: ParsedActivity) -> float | None:
@@ -499,25 +537,68 @@ def _segment_heart_rate(
     return sum(values) / len(values)
 
 
-def _pace_trend(first: float, second: float) -> str:
-    """Label the pace trend; lower pace seconds mean faster."""
-    if second < first * (1.0 - TREND_THRESHOLD):
-        return TREND_FASTER_LATER
-    if second > first * (1.0 + TREND_THRESHOLD):
-        return TREND_SLOWER_LATER
-    return TREND_STABLE
-
-
-def _heart_rate_trend(first: float, second: float) -> str:
-    """Label the heart rate trend; higher later HR maps to slower."""
-    if second > first * (1.0 + TREND_THRESHOLD):
-        return TREND_SLOWER_LATER
-    if second < first * (1.0 - TREND_THRESHOLD):
-        return TREND_FASTER_LATER
-    return TREND_STABLE
-
-
 # --- metric helpers ----------------------------------------------------
+
+
+def _pace_reliability(
+    distance_meters: float | None,
+    duration_seconds: float | None,
+) -> tuple[str, str]:
+    """Classify lap pace reliability using fixed data-quality rules."""
+    if distance_meters is None or duration_seconds is None:
+        return "invalid", "missing_distance_or_duration"
+    if distance_meters <= 0 or duration_seconds <= 0:
+        return "invalid", "non_positive_distance_or_duration"
+    if distance_meters < 100:
+        return "low", "lap_distance_below_0.1km"
+    if distance_meters < 300:
+        return "medium", "lap_distance_between_0.1km_and_0.3km"
+    return "high", "lap_distance_at_least_0.3km"
+
+
+def _cadence_metrics(
+    trackpoints: list[Trackpoint],
+    source: str,
+) -> dict:
+    """Aggregate raw Garmin run-cadence values without conversion."""
+    values = [
+        point.run_cadence_spm
+        for point in trackpoints
+        if point.run_cadence_spm is not None
+    ]
+    return {
+        "avg_run_cadence_raw": _average(values),
+        "max_run_cadence_raw": max(values) if values else None,
+        "trackpoints_with_run_cadence_count": len(values),
+        "source": source,
+        "avg_cadence_spm": None,
+        "conversion_rule": None,
+    }
+
+
+def _power_metrics(
+    trackpoints: list[Trackpoint],
+    source: str,
+) -> dict:
+    """Aggregate raw TCX power values without interpretation."""
+    values = [
+        point.power_watts
+        for point in trackpoints
+        if point.power_watts is not None
+    ]
+    return {
+        "avg_watts": _average(values),
+        "max_watts": max(values) if values else None,
+        "trackpoints_with_power_count": len(values),
+        "source": source,
+    }
+
+
+def _average(values: list[int]) -> float | None:
+    """Return a one-decimal arithmetic mean for integer samples."""
+    if not values:
+        return None
+    return round(sum(values) / len(values), 1)
 
 
 def _altitude_stats(
@@ -589,6 +670,45 @@ def _round1(value: float | None) -> float | None:
     return round(value, 1)
 
 
+def _timezone(timezone_name: str) -> tzinfo:
+    """Return a ZoneInfo instance or raise ValueError for an invalid name."""
+    try:
+        return ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        fallback = _timezone_fallback(timezone_name)
+        if fallback is not None:
+            return fallback
+        raise ValueError(
+            f"Invalid timezone_name: {timezone_name!r}"
+        ) from exc
+
+
+def _timezone_fallback(timezone_name: str) -> tzinfo | None:
+    """Return stdlib fixed-offset fallbacks for known stable zones."""
+    if timezone_name == "Asia/Taipei":
+        return timezone(timedelta(hours=8), timezone_name)
+    if timezone_name == "UTC":
+        return timezone.utc
+    return None
+
+
+def _local_time(value: datetime | None, zone: tzinfo) -> datetime | None:
+    """Convert a recorded timestamp to the configured timezone."""
+    if value is None:
+        return None
+    dt = value
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(zone)
+
+
+def _iso_offset(value: datetime | None) -> str | None:
+    """Serialize a datetime while preserving its UTC offset."""
+    if value is None:
+        return None
+    return value.isoformat()
+
+
 def _iso(value: datetime | None) -> str | None:
     """Serialize a datetime to an ISO 8601 UTC string (``Z`` suffix)."""
     if value is None:
@@ -654,9 +774,10 @@ def _lap_table(lap_summary: list[dict]) -> list[str]:
         return ["No lap data is available."]
     header = (
         "| Lap | Start time | Duration (min) | Distance (km) "
-        "| Pace | Avg HR | Max HR | Max speed (m/s) |"
+        "| Pace | Pace reliability | Reliability reason | Avg HR "
+        "| Max HR | Max speed (m/s) | Avg cadence raw | Avg watts |"
     )
-    divider = "|---|---|---|---|---|---|---|---|"
+    divider = "|---|---|---|---|---|---|---|---|---|---|---|---|"
     rows = [header, divider]
     for lap in lap_summary:
         rows.append(
@@ -665,8 +786,12 @@ def _lap_table(lap_summary: list[dict]) -> list[str]:
             f"| {_md(lap['duration_minutes'])} "
             f"| {_md(lap['distance_km'])} "
             f"| {_md(lap['average_pace_formatted'])} "
+            f"| {_md(lap['pace_reliability'])} "
+            f"| {_md(lap['reliability_reason'])} "
             f"| {_md(lap['average_heart_rate_bpm'])} "
             f"| {_md(lap['maximum_heart_rate_bpm'])} "
-            f"| {_md(lap['maximum_speed_mps'])} |"
+            f"| {_md(lap['maximum_speed_mps'])} "
+            f"| {_md(lap['cadence']['avg_run_cadence_raw'])} "
+            f"| {_md(lap['power']['avg_watts'])} |"
         )
     return rows

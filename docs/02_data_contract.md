@@ -1,50 +1,61 @@
 # 資料契約
 
-## 1. 輸入契約
+本專案 MVP 以 Garmin Connect 匯出的 Running TCX 為輸入，輸出
+normalized activity、atomic per-activity artifacts，以及 coach-facing
+session bundle artifacts。所有 AI-ready 輸出都必須遵守 No-Inference
+Policy。
 
-### 1.1 支援的輸入
+## 1. No-Inference Policy
 
-支援的輸入：
+本工具只輸出下列資料：
 
-- Garmin Connect 匯出的 `.tcx` 檔案。
+- TCX 原始欄位。
+- 由 TCX 數值以固定公式計算的 metrics。
+- data quality flags。
+- privacy policy 與 source/data policy。
+- time-gap rule 產生的 session candidate grouping。
 
-支援的活動類型：
+不得自動產生下列內容：
 
-- Running
+- activity、lap 或 segment 的課表角色。
+- warmup、main set、cooldown、interval、tempo、easy、recovery、
+  long run、quality session 等訓練語意。
+- fatigue、collapse、workout quality、workout type 等解讀。
+- coaching advice、medical interpretation 或主動分析問題。
 
-輸入模式：
+所有 activity 與 lap 的 role 欄位固定如下：
 
-- 單一檔案路徑。
-- 包含一個或多個 `.tcx` 檔案的資料夾路徑。
+```json
+{
+  "role": null,
+  "role_source": "not_inferred"
+}
+```
 
-### 1.2 TCX 解析預期
+## 2. Coach-Facing 標準輸出
 
-解析器應支援：
+AI 教練或其他 AI 工具的標準輸出來源是 session bundle：
 
-- TCX XML namespaces。
-- `TrainingCenterDatabase`。
-- `Activities`。
-- `Activity`。
-- `Lap`。
-- `Track`。
-- `Trackpoint`。
-- 已知且有用的 Garmin 擴充欄位。
+```text
+session_bundle/
+  session_bundle.json
+  session_bundle.md
+```
 
-已知 Garmin 擴充欄位可能包含：
+不論輸入是單一 TCX 或多個 TCX，都必須輸出同一組 session bundle
+artifacts。單一 TCX 的 `export_scope` 範例如下：
 
-- Speed
-- Run cadence
-- Average speed
-- Average run cadence
-- Watts
+```json
+{
+  "type": "session_bundle",
+  "activity_count": 1,
+  "session_candidate_count": 1,
+  "contains_multiple_activities": false
+}
+```
 
-不支援的擴充欄位可以略過。
-
-## 2. 輸出檔案組
-
-每個來源活動都應在輸出目錄下產生一組檔案。
-
-建議命名模式：
+Atomic per-activity artifacts 仍保留作為 debug、audit 與資料交換用途，
+但不是 AI coach-facing 的主要輸出。
 
 ```text
 <safe_activity_id>/
@@ -54,262 +65,245 @@
   ai_summary.md
 ```
 
-`safe_activity_id` 必須由 `activity_id` 或來源檔名衍生。不得直接使用
-原始 `activity_id` 作為資料夾名稱。產生規則：
+## 3. Atomic Activity Identity
 
-- 將 path-unsafe characters 換成 `_`。
-- 至少包含 Windows 與 POSIX 不安全字元：`< > : " / \ | ? *`。
-- 去除前後空白與結尾的 `.`。
-- 若結果為空，使用由來源檔名衍生出的安全檔名。
+- 一個 normalized activity 永遠等於一個來源 TCX file。
+- Session bundle 不合併 activity identity。
+- Session candidate grouping 只表示相鄰活動可能屬於同一訓練時段，
+  不表示 TCX 來源資料已有該事實。
 
-## 3. `activity.json`
+## 4. Session Bundle Schema
 
-用途：單一活動的完整結構化表示。
-
-必要的頂層結構：
+`session_bundle.json` top-level keys：
 
 ```json
 {
-  "source": {},
-  "privacy": {},
-  "activity": {},
-  "laps": [],
-  "trackpoints": [],
-  "warnings": []
+  "schema_version": "tcx_training_data_v1",
+  "export_scope": {},
+  "data_policy": {},
+  "sessions": [],
+  "data_quality": {},
+  "privacy": {}
 }
 ```
 
-`warnings` 中每個物件必須符合以下 schema：
+`data_policy` 必須包含：
 
 ```json
 {
-  "code": "missing_optional_field",
-  "severity": "warning",
-  "field": "heart_rate_bpm",
-  "message": "Heart rate is not available in the source file.",
-  "source_file": "activity.tcx"
+  "activity_equals_one_tcx_file": true,
+  "session_may_contain_multiple_activities": true,
+  "grouping_is_candidate_not_fact": true,
+  "no_workout_role_inference": true,
+  "no_coaching_advice": true,
+  "no_medical_interpretation": true,
+  "manual_context_fields_are_placeholders": true
 }
 ```
 
-`severity` 可先使用 `info`、`warning` 或 `error`。
-`field` 應填入受影響欄位；若 warning 是整個檔案層級，則使用 `null`。
-`source_file` 應使用來源檔名，不應包含私人本機完整路徑。
+## 5. Session Candidate
 
-### 3.1 `source`
+每個 session candidate 必須包含：
+
+- `session_id`
+- `grouping_confidence: "candidate"`
+- `grouping_rule`
+- `role_inference: "disabled"`
+- `activity_count`
+- `start_time` / `end_time`
+- `start_time_local` / `end_time_local`
+- `timezone`
+- `local_date`
+- total distance / duration
+- weighted average heart rate
+- maximum heart rate
+- cadence factual metrics
+- power factual metrics
+- `manual_context`
+- `activities`
+- `data_quality`
+
+`manual_context` 固定為 manual-only placeholders：
 
 ```json
 {
-  "format": "tcx",
-  "file_name": "activity.tcx",
-  "file_path": "data/raw/activity.tcx"
+  "planned_workout_text": null,
+  "planned_workout_source": "manual_only",
+  "completion": null,
+  "rpe_1_to_10": null,
+  "pain_before": null,
+  "pain_during": null,
+  "pain_after": null,
+  "next_day_status": null
 }
 ```
 
-### 3.2 `privacy`
+這些欄位不得從 TCX 推論，也不得猜測課表完成度、疼痛、RPE 或隔日狀態。
+
+## 6. Session Grouping
+
+`build_session_bundle()` 使用 deterministic grouping rule：
+
+- 依 `start_time` 排序。
+- 使用 `timezone_name` 將 `start_time` 轉為 local date。
+- 相同 local date。
+- 相同 sport。
+- 相鄰 `start_time` 間隔不超過 `max_gap_minutes`，預設 30 分鐘。
+- 缺少 `start_time` 的 activity 必須獨立成為 singleton candidate。
+
+`grouping_rule` 範例：
 
 ```json
 {
-  "gps_policy": "keep"
+  "same_local_date": true,
+  "timezone": "Asia/Taipei",
+  "same_sport": true,
+  "max_gap_minutes": 30
 }
 ```
 
-允許的 `gps_policy` 值：
+無效的 `timezone_name` 必須 raise `ValueError`，不得靜默 fallback 成其他
+timezone。
 
-- `keep`
-- `remove`
-- `redact_start_end`
+## 7. Activity Summary Local Time
 
-預設值：
-
-- `keep`
-
-### 3.3 `activity`
+每個 activity summary 必須保留 UTC time，並額外提供 local time 欄位：
 
 ```json
 {
-  "sport": "Running",
-  "activity_id": "2026-05-01T06:30:00Z",
-  "start_time": "2026-05-01T06:30:00Z",
-  "total_time_seconds": 3600.0,
-  "distance_meters": 10000.0,
-  "calories": 650,
-  "average_heart_rate_bpm": 145,
-  "maximum_heart_rate_bpm": 172,
-  "maximum_speed_mps": 4.2
+  "start_time": "2026-07-05T13:43:35Z",
+  "start_time_local": "2026-07-05T21:43:35+08:00",
+  "timezone": "Asia/Taipei",
+  "local_date": "2026-07-05"
 }
 ```
 
-缺漏的標準值應為 `null`。
+Timezone conversion 使用 Python standard library `zoneinfo`，不新增
+production dependency。
 
-### 3.4 `laps`
+## 8. Lap Pace Reliability
 
-每個 lap 物件：
+每個 lap summary 必須包含 `pace_reliability` 與 `reliability_reason`。
+這是 data-quality flag，不是訓練解讀。
+
+| 條件 | pace_reliability | reliability_reason |
+|---|---|---|
+| distance 或 duration 缺漏 | `invalid` | `missing_distance_or_duration` |
+| distance <= 0 或 duration <= 0 | `invalid` | `non_positive_distance_or_duration` |
+| distance < 0.10 km | `low` | `lap_distance_below_0.1km` |
+| 0.10 km <= distance < 0.30 km | `medium` | `lap_distance_between_0.1km_and_0.3km` |
+| distance >= 0.30 km | `high` | `lap_distance_at_least_0.3km` |
+
+## 9. Computed Split Metrics
+
+`computed_split_metrics` 只可輸出固定公式數值：
+
+- 前半段平均配速。
+- 後半段平均配速。
+- 後半段配速 delta，計算式為後半減前半。
+- 前半段平均心率。
+- 後半段平均心率。
+- 後半段心率 delta，計算式為後半減前半。
+
+必要 policy 欄位：
 
 ```json
 {
-  "lap_index": 1,
-  "start_time": "2026-05-01T06:30:00Z",
-  "total_time_seconds": 1800.0,
-  "distance_meters": 5000.0,
-  "calories": 320,
-  "average_heart_rate_bpm": 142,
-  "maximum_heart_rate_bpm": 168,
-  "maximum_speed_mps": 4.1,
-  "intensity": "Active",
-  "trigger_method": "Manual"
+  "interpretation_policy": "computed_metrics_only_no_training_interpretation",
+  "interpretation_level": "limited_for_interval_or_mixed_lap_activity"
 }
 ```
 
-### 3.5 `trackpoints`
-
-每個 trackpoint 物件：
-
-```json
-{
-  "trackpoint_index": 1,
-  "lap_index": 1,
-  "timestamp": "2026-05-01T06:30:01Z",
-  "latitude": 25.0,
-  "longitude": 121.0,
-  "altitude_meters": 20.5,
-  "distance_meters": 10.0,
-  "heart_rate_bpm": 140,
-  "speed_mps": 2.8,
-  "pace_seconds_per_km": 357.1,
-  "run_cadence_spm": 170,
-  "power_watts": 230
-}
-```
-
-GPS 欄位取決於 `gps_policy`。
-
-## 4. `trackpoints.csv`
-
-用途：適合試算表與資料分析的 trackpoint 輸出。
-
-必要欄位：
+`notes` 必須包含：
 
 ```text
-activity_id
-lap_index
-trackpoint_index
-timestamp
-latitude
-longitude
-altitude_meters
-distance_meters
-heart_rate_bpm
-speed_mps
-pace_seconds_per_km
-run_cadence_spm
-power_watts
+This split metric is a fixed-formula summary and must not be interpreted as fatigue, workout quality, or workout type.
 ```
 
-CSV 規則：
+不得輸出 `faster_later`、`slower_later`、`stable`、`fatigue`、
+`decline`、`collapse`、`tempo`、`interval`、`easy` 或 `main set`。
 
-- 使用 UTF-8。
-- 包含標題列。
-- 缺漏值應為空白儲存格。
-- GPS 欄位可能因 `gps_policy` 而為空。
+## 10. Cadence Factual Metrics
 
-## 5. `ai_summary.json`
+Cadence 使用 Garmin RunCadence 或 normalized trackpoint 中的原始數值，
+本 PR 不做 x2 conversion。
 
-用途：精簡、結構化、AI-ready 摘要。
-
-必要的頂層結構：
+Activity-level 範例：
 
 ```json
 {
-  "activity_summary": {},
-  "key_metrics": {},
-  "lap_summary": [],
-  "trend_summary": {},
-  "privacy": {},
-  "data_quality": {},
-  "ai_context": ""
+  "cadence": {
+    "avg_run_cadence_raw": 83.1,
+    "max_run_cadence_raw": 88,
+    "trackpoints_with_run_cadence_count": 2485,
+    "source": "tcx_extension_RunCadence_or_normalized_trackpoint",
+    "avg_cadence_spm": null,
+    "conversion_rule": null
+  }
 }
 ```
 
-### 5.1 關鍵指標
+Lap-level `source` 使用 `normalized_trackpoints_by_lap`。Session-level
+`source` 使用 `activity_trackpoint_aggregate`。
 
-MVP 關鍵指標：
+## 11. Power Factual Metrics
 
-- 持續時間，單位為分鐘
-- 距離，單位為公里
-- 平均配速，單位為每公里秒數
-- 平均配速，格式為 `mm:ss/km`
-- 平均心率
-- 最大心率
-- 最低海拔
-- 最高海拔
-- 估計爬升高度
-- 單圈數量
+Power 使用 Garmin Watts 或 normalized trackpoint 中的原始數值，不推論
+訓練強度。
 
-### 5.2 趨勢摘要
-
-MVP 趨勢欄位：
-
-- 前半段平均配速
-- 後半段平均配速
-- 配速趨勢
-- 前半段平均心率
-- 後半段平均心率
-- 心率趨勢
-
-允許的簡單趨勢標籤：
-
-- `faster_later`
-- `slower_later`
-- `stable`
-- `insufficient_data`
-
-趨勢計算規則：
-
-- 可行時，以累積距離切分前半段與後半段。
-- 前半段代表 0% 到 50% 距離；後半段代表 50% 到 100% 距離。
-- 配速趨勢需要足夠的距離與時間資料。
-- 心率趨勢需要足夠的心率與 trackpoint 資料。
-- 距離、時間或 trackpoint 資料不足時，相關趨勢欄位應使用
-  `insufficient_data`。
-
-## 6. `ai_summary.md`
-
-用途：交給 ChatGPT、Claude、NotebookLM 或類似 AI 工具的主要文件。
-
-建議章節：
-
-```markdown
-# Running Activity Summary
-
-## Activity
-
-## Key Metrics
-
-## Lap Summary
-
-## Pace Trend
-
-## Heart Rate Trend
-
-## Elevation
-
-## Data Quality Notes
-
-## Privacy Notes
-
-## Suggested AI Analysis Questions
+```json
+{
+  "power": {
+    "avg_watts": 230.5,
+    "max_watts": 310,
+    "trackpoints_with_power_count": 2485,
+    "source": "tcx_extension_Watts_or_normalized_trackpoint"
+  }
+}
 ```
 
-Markdown 應該簡潔、基於事實，並避免假裝自己是認證教練或醫療專業人士。
+沒有 power 資料時，平均與最大值為 `null`，count 為 `0`。
 
-## 7. 隱私契約
+## 12. Data Quality
+
+Activity-level 與 session-level `data_quality` 必須包含：
+
+- `trackpoints_with_run_cadence_count`
+- `trackpoints_with_power_count`
+
+Cadence 與 power 是 optional Garmin extensions，缺漏時不得列入
+`missing_key_fields`。
+
+## 13. Markdown Contract
+
+`session_bundle.md` 必須包含：
+
+- `# TCX Session Bundle`
+- `## Data Policy`
+- `## Export Scope`
+- `## Session Candidates`
+- `## Activities`
+- `## Lap Summaries`
+- `## Computed Split Metrics`
+- `## Data Quality`
+- `## Privacy`
+
+Data Policy 需明示：
+
+- Manual context fields are placeholders only and were not inferred from TCX.
+- Cadence values are raw Garmin RunCadence values; no cadence x2 conversion is applied.
+
+Markdown 不得包含 GPS 座標、route details、Suggested AI Analysis Questions、
+訓練角色推論、教練建議或醫療解讀。
+
+## 14. Privacy Contract
 
 GPS policy 行為：
 
-- `keep`：在 JSON、CSV 以及相關 AI 摘要中保留緯度與經度。
-- `remove`：JSON 中將緯度與經度設為 `null`，CSV 中留空，Markdown 中省略路線細節。
-- `redact_start_end`：預設以距離遮蔽活動前 300 公尺與後 300 公尺的
-  GPS 座標。距離資料不足時，改遮蔽前 10% 與後 10% trackpoints。
-  若活動太短，無法保留中段座標，則遮蔽所有 GPS 座標。
+- `keep`：`activity.json` 與 CSV 可保留緯度與經度；AI summary 與
+  session bundle 仍不得包含座標或路線細節。
+- `remove`：JSON 中將緯度與經度設為 `null`，CSV 中留空。
+- `redact_start_end`：遮蔽活動開頭與結尾的 GPS 座標。
 
-輸出必須記錄所選的 GPS policy。
+輸出必須記錄所選 GPS policy。Raw TCX、`.env`、tokens、credentials、
+`data/raw/` 與 `data/processed/` 不得 commit。

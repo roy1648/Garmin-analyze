@@ -1,200 +1,220 @@
 # 架構
 
-## 1. 設計原則
+本專案是個人 Garmin Connect TCX ETL 與 factual analysis 工具。MVP
+範圍限定為手動匯出的 Running TCX，不包含 Web UI、database、Garmin API
+login、AI API upload 或完整 AI coaching platform。
 
-本專案應維持小型，並能由一位開發者維護。
+## 1. Artifact Layers
 
-MVP 應避免：
+### 1.1 Atomic Per-Activity Artifacts
 
-- 大型框架
-- Web UI
-- 資料庫儲存
-- Garmin Connect 登入
-- Garmin API 整合
-- 直接上傳到 AI API
-
-這些不是永久拒絕，而是延後到 TCX 轉換流程穩定之後再考慮。
-
-## 2. MVP 元件
-
-建議的未來 Python 結構：
-
-```text
-src/
-  garmin_tcx_ai/
-    parser.py
-    models.py
-    normalizer.py
-    exporters.py
-    summary.py
-    privacy.py
-scripts/
-  convert_tcx.py
-tests/
-  fixtures/
-```
-
-這是建議的實作結構，不是目前純文件階段的要求。
-
-## 3. 元件職責
-
-### 3.1 Parser
-
-負責：
-
-- 讀取 TCX XML。
-- 處理 XML namespaces。
-- 擷取 activity、lap 與 trackpoint 欄位。
-- 擷取已知 Garmin 擴充欄位。
-- 產生原始解析物件或 dictionaries。
-
-Parser 不應：
-
-- 寫入輸出檔案。
-- 套用 AI 摘要邏輯。
-- 修改 privacy policy。
-
-### 3.2 Normalizer
-
-負責：
-
-- 將解析後的 TCX 值轉換成內部資料契約。
-- 正規化單位。
-- 計算衍生值，例如配速。
-- 保留缺漏值，稍後表示為 `null` 或空白儲存格。
-
-### 3.3 Privacy
-
-負責：
-
-- 套用 GPS policy。
-- 確保輸出記錄使用了哪一種 GPS policy。
-- 避免 AI-ready 摘要意外洩漏座標。
-- 對 `redact_start_end` 先使用距離遮蔽前後各 300 公尺，距離資料不足
-  時才 fallback 到前後各 10% trackpoints。
-
-支援的 policies：
-
-- `keep`
-- `remove`
-- `redact_start_end`
-
-### 3.4 Exporters
-
-負責產生：
+每個 TCX 可輸出一組 atomic artifacts：
 
 - `activity.json`
 - `trackpoints.csv`
 - `ai_summary.json`
 - `ai_summary.md`
 
-Exporters 不應直接解析 TCX。
+這一層用於 debug、audit 與資料交換。
 
-輸出資料夾必須使用 `safe_activity_id`，不得直接使用原始
-`activity_id`。`safe_activity_id` 應將 path-unsafe characters 替換成
-`_`。
+### 1.2 Coach-Facing Session Bundle Artifacts
 
-### 3.5 Summary Builder
+AI 教練或 AI 工具的標準輸入是：
 
-負責：
+- `session_bundle/session_bundle.json`
+- `session_bundle/session_bundle.md`
 
-- 關鍵指標。
-- 單圈摘要。
-- 前半段與後半段的配速趨勢。
-- 前半段與後半段的心率趨勢。
-- 資料品質說明。
-- 建議的 AI 分析問題。
+不論輸入是單一 TCX 或多個 TCX，都使用 session bundle 作為
+coach-facing artifact。
 
-Summary builder 應保持基於事實，並避免醫療或專業教練聲明。
-
-### 3.6 Script Entrypoint
-
-MVP 可以從簡單 script 開始。
-
-未來指令形式：
-
-```bash
-python scripts/convert_tcx.py --input data/raw/activity.tcx --output-dir data/processed --gps-policy keep
-```
-
-批次範例：
-
-```bash
-python scripts/convert_tcx.py --input data/raw --output-dir data/processed --gps-policy keep
-```
-
-Script 應設計成未來可以演進為正式 CLI，而不需要重寫核心邏輯。
-
-Exit code 慣例：
-
-- `0`：所有轉換都成功。
-- `1`：批次已完成，但至少一個檔案失敗或被略過。
-- `2`：轉換開始前發生使用者、設定或輸入錯誤。
-
-## 4. 資料流程
+## 2. Module Responsibility
 
 ```text
-TCX file or folder
-  -> input discovery
-  -> TCX parser
-  -> normalizer
-  -> privacy policy
-  -> summary builder
-  -> JSON / CSV / Markdown exporters
+TCX file(s)
+  -> parser.py
+  -> normalizer.py
+  -> privacy.py
+  -> summary.py
+  -> session.py
+  -> exporters.py
 ```
 
-在整個流程中，原始 TCX 檔案都是唯讀。
+### 2.1 `parser.py`
 
-## 5. 依賴策略
+責任：
 
-可行時，先從 Python standard library 開始。
+- 讀取 TCX XML。
+- 處理 XML namespaces。
+- 擷取 activity、lap、trackpoint 欄位。
+- 擷取 Garmin extensions，例如 Speed、RunCadence、Watts。
 
-未來可能的依賴：
+Parser 不負責：
 
-- `pydantic`：用於更嚴格的資料模型。
-- `pandas`：用於更完整的 CSV 或分析工作流程。
-- `typer`：用於更完整的 CLI。
-- `pytest`：用於自動化測試。
+- 套用 privacy policy。
+- 推論訓練角色。
+- 產生 AI coaching 或 interpretation。
 
-只有在依賴能降低複雜度，而不是增加複雜度時，才應加入。
+### 2.2 `normalizer.py`
 
-## 6. 未來架構選項
+責任：
 
-### 6.1 個人資料庫
+- 將 parser output 轉為 normalized `ParsedActivity`。
+- 缺漏欄位使用 `None`。
+- 計算固定公式欄位，例如 pace。
 
-未來版本可以加入小型 SQLite 資料庫，用於：
+Normalizer 不負責 session grouping 或 training interpretation。
 
-- 活動歷史
-- 趨勢分析
-- 多活動比較
-- 更快的本機查詢
+### 2.3 `privacy.py`
 
-這應該是在檔案式轉換穩定後的獨立階段。
+責任：
 
-### 6.2 GarminDB 研究
+- 套用 GPS policy。
+- 支援 `keep`、`remove`、`redact_start_end`。
+- 在輸出 metadata 中保留 privacy policy。
 
-GarminDB 未來可評估作為 Garmin 資料匯入、SQLite 儲存、分析與
-Jupyter-style 工作流程的參考或整合路徑。
+AI summary 與 session bundle 不得包含 GPS 座標或 route details。
 
-MVP 不得依賴 GarminDB。
+### 2.4 `summary.py`
 
-參考：
+責任：
 
-- https://github.com/tcgoetz/GarminDB
+- 將單一 normalized activity 轉為 factual `ai_summary` dict。
+- 計算 activity / lap / split / elevation / cadence / power factual metrics。
+- 輸出 `data_policy` 與 `data_quality`。
+- 產生 per-activity markdown summary。
 
-### 6.3 python-garminconnect 研究
+Summary 不負責：
 
-python-garminconnect 未來可評估用於 Garmin Connect API 存取、活動資料、
-健康資料、歷史資料與 token 工作流程。
+- AI coaching。
+- 課表角色推論。
+- 疲勞、訓練品質或訓練類型解讀。
+- Suggested AI Analysis Questions。
 
-MVP 不得登入 Garmin Connect，也不得依賴 python-garminconnect。
+### 2.5 `session.py`
 
-參考：
+責任：
 
-- https://github.com/cyberjunky/python-garminconnect
+- 接收一個或多個 normalized `ParsedActivity`。
+- 依 `start_time` 排序。
+- 使用 configured timezone 轉出 local date。
+- 以 same local date、same sport、start-time gap 建立 session candidates。
+- 保留每個 TCX 的 activity identity。
+- 聚合 session-level factual metrics。
+- 輸出 coach-facing `session_bundle` dict 與 markdown。
 
-### 6.4 Web UI
+Session grouping 是 candidate，不是 TCX 來源中的事實，也不是課表角色
+推論。
 
-Web UI 未來可能有用，但不屬於 MVP。
+### 2.6 `exporters.py`
 
-任何 UI 工作開始前，應先完成檔案式轉換流程。
+責任：
+
+- 寫出 JSON / CSV / Markdown artifacts。
+- `write_session_bundle_json()` 與 `write_session_bundle_markdown()` 寫到
+  固定 `session_bundle/` 目錄。
+- JSON 使用 UTF-8、indent=2，`None` 輸出為 `null`，datetime 輸出為
+  ISO 8601。
+
+Exporters 不解析 TCX，也不加入 business logic 或 inference。
+
+## 3. Session Bundle API
+
+```python
+def build_session_bundle(
+    activities: list[ParsedActivity],
+    max_gap_minutes: int = 30,
+    timezone_name: str = "Asia/Taipei",
+) -> dict:
+    ...
+```
+
+Exporter API：
+
+```python
+def write_session_bundle_json(
+    activities: list[ParsedActivity],
+    output_dir: Path,
+    max_gap_minutes: int = 30,
+    timezone_name: str = "Asia/Taipei",
+) -> Path:
+    ...
+
+def write_session_bundle_markdown(
+    activities: list[ParsedActivity],
+    output_dir: Path,
+    max_gap_minutes: int = 30,
+    timezone_name: str = "Asia/Taipei",
+) -> Path:
+    ...
+```
+
+Timezone conversion 使用 Python standard library `zoneinfo`。無效
+`timezone_name` 必須 raise `ValueError`。
+
+## 4. Grouping Model
+
+Session candidate grouping rules：
+
+- Missing `start_time` -> singleton candidate。
+- Same local date in configured timezone。
+- Same sport。
+- Adjacent start-time gap <= `max_gap_minutes`。
+
+`grouping_rule` 必須明示：
+
+```json
+{
+  "same_local_date": true,
+  "timezone": "Asia/Taipei",
+  "same_sport": true,
+  "max_gap_minutes": 30
+}
+```
+
+## 5. Factual Metrics
+
+### 5.1 Pace Reliability
+
+`summary.py` 在 lap summary 產生 `pace_reliability` 與
+`reliability_reason`。這是 data-quality classification，不是訓練解讀。
+
+### 5.2 Computed Split Metrics
+
+Split metrics 只計算前後半固定公式數值。`interpretation_level` 固定為
+`limited_for_interval_or_mixed_lap_activity`，並以 notes 明示不得解讀為
+fatigue、workout quality 或 workout type。
+
+### 5.3 Cadence / Power
+
+Cadence 與 power 在 activity、lap、session 三層聚合：
+
+- Activity-level 來源：`tcx_extension_RunCadence_or_normalized_trackpoint`
+  與 `tcx_extension_Watts_or_normalized_trackpoint`。
+- Lap-level 來源：`normalized_trackpoints_by_lap`。
+- Session-level 來源：`activity_trackpoint_aggregate`。
+
+Cadence 保留 raw Garmin RunCadence 值，不做 x2 conversion。
+
+## 6. Data Safety
+
+- 不得 commit raw TCX、`.env`、credentials、tokens。
+- `data/raw/`、`data/processed/` 與 `data/samples/` 不進 Git。
+- GPS coordinates 與 health metrics 視為 sensitive data。
+- Tests 使用 committed sanitized fixtures。
+- Unit tests 不得呼叫 Garmin Connect。
+
+## 7. MVP Non-Goals
+
+PR #9 與 MVP 不包含：
+
+- Garmin Connect login。
+- Garmin API。
+- GarminDB。
+- Database / SQLite。
+- Web UI。
+- Cloud sync。
+- OpenAI、Claude、Gemini 或 NotebookLM API upload。
+- AI coaching platform。
+- Planned workout matching。
+- Manual feedback input。
+- HR zone / time in zone。

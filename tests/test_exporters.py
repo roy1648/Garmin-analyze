@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from garmin_tcx_ai.exporters import (
@@ -13,6 +13,8 @@ from garmin_tcx_ai.exporters import (
     write_activity_json,
     write_ai_summary_json,
     write_ai_summary_markdown,
+    write_session_bundle_json,
+    write_session_bundle_markdown,
     write_trackpoints_csv,
 )
 from garmin_tcx_ai.models import (
@@ -192,8 +194,8 @@ def test_ai_summary_json_top_level_keys(tmp_path: Path) -> None:
     path = write_ai_summary_json(_make_activity(), tmp_path)
     data = json.loads(path.read_text(encoding="utf-8"))
     for key in ("activity_summary", "key_metrics", "lap_summary",
-                "trend_summary", "privacy", "data_quality",
-                "ai_context"):
+                "computed_split_metrics", "privacy", "data_quality",
+                "data_policy"):
         assert key in data
 
 
@@ -245,12 +247,11 @@ def test_ai_summary_markdown_has_fixed_sections(
         "## Activity",
         "## Key Metrics",
         "## Lap Summary",
-        "## Pace Trend",
-        "## Heart Rate Trend",
+        "## Computed Split Metrics",
         "## Elevation",
         "## Data Quality Notes",
         "## Privacy Notes",
-        "## Suggested AI Analysis Questions",
+        "## Data Policy",
     ):
         assert heading in text
 
@@ -281,3 +282,142 @@ def test_ai_summary_markdown_no_coaching_or_medical(
         "as your coach",
     ):
         assert phrase not in text
+
+
+# --- Session bundle exporters ---------------------------------------------
+
+
+def _make_session_activities() -> list[ParsedActivity]:
+    """Build two activities for session exporter tests."""
+    first = _make_activity()
+    second = _make_activity()
+    second.source.file_name = "run-2.tcx"
+    second.activity.activity_id = "2026-05-01T06:50:00Z"
+    second.activity.start_time = (
+        first.activity.start_time + timedelta(minutes=20)
+    )
+    second.laps[0].start_time = second.activity.start_time
+    second.trackpoints[0].timestamp = second.activity.start_time
+    return [second, first]
+
+
+def test_write_session_bundle_json_creates_fixed_path(
+    tmp_path: Path,
+) -> None:
+    """JSON exporter returns the fixed session bundle path."""
+    path = write_session_bundle_json(_make_session_activities(), tmp_path)
+    assert isinstance(path, Path)
+    assert path == tmp_path / "session_bundle" / "session_bundle.json"
+    assert path.exists()
+
+
+def test_session_bundle_json_has_complete_top_level_keys(
+    tmp_path: Path,
+) -> None:
+    """Written session JSON contains every contract section."""
+    path = write_session_bundle_json(_make_session_activities(), tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert set(data) == {
+        "schema_version",
+        "export_scope",
+        "data_policy",
+        "sessions",
+        "data_quality",
+        "privacy",
+    }
+    assert data["export_scope"]["activity_count"] == 2
+    assert data["export_scope"]["contains_multiple_activities"] is True
+
+
+def test_single_activity_session_bundle_json_is_standard_output(
+    tmp_path: Path,
+) -> None:
+    """A single TCX still writes the coach-facing session bundle."""
+    activity = _make_activity()
+    activity.trackpoints[0].run_cadence_spm = 82
+    activity.trackpoints[0].power_watts = 210
+    path = write_session_bundle_json([activity], tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert path == tmp_path / "session_bundle" / "session_bundle.json"
+    assert data["export_scope"]["activity_count"] == 1
+    assert data["export_scope"]["session_candidate_count"] == 1
+    assert data["export_scope"]["contains_multiple_activities"] is False
+    assert data["sessions"][0]["manual_context"]["completion"] is None
+    assert data["sessions"][0]["timezone"] == "Asia/Taipei"
+    assert data["sessions"][0]["local_date"] == "2026-05-01"
+    activity = data["sessions"][0]["activities"][0]
+    assert activity["activity_summary"]["start_time_local"] == (
+        "2026-05-01T14:30:00+08:00"
+    )
+    assert activity["key_metrics"]["cadence"]["avg_run_cadence_raw"] == 82.0
+    assert activity["key_metrics"]["cadence"]["avg_cadence_spm"] is None
+    assert activity["key_metrics"]["cadence"]["conversion_rule"] is None
+    assert activity["key_metrics"]["power"]["avg_watts"] == 210.0
+
+
+def test_write_session_bundle_markdown_creates_fixed_path(
+    tmp_path: Path,
+) -> None:
+    """Markdown exporter returns the fixed session bundle path."""
+    path = write_session_bundle_markdown(
+        _make_session_activities(), tmp_path
+    )
+    assert isinstance(path, Path)
+    assert path == tmp_path / "session_bundle" / "session_bundle.md"
+    assert path.exists()
+
+
+def test_single_activity_session_bundle_markdown_is_standard_output(
+    tmp_path: Path,
+) -> None:
+    """A single TCX writes session_bundle.md with coach-facing sections."""
+    activity = _make_activity()
+    activity.trackpoints[0].run_cadence_spm = 82
+    activity.trackpoints[0].power_watts = 210
+    path = write_session_bundle_markdown([activity], tmp_path)
+    text = path.read_text(encoding="utf-8")
+    assert path == tmp_path / "session_bundle" / "session_bundle.md"
+    assert "- Activities: 1" in text
+    assert "- Session candidates: 1" in text
+    assert "- Local date: 2026-05-01" in text
+    assert "- Timezone: Asia/Taipei" in text
+    assert "- Average run cadence raw: 82.0" in text
+    assert "- Average watts: 210.0" in text
+    assert "Pace reliability" in text
+    assert "Reliability reason" in text
+    assert "Avg cadence raw" in text
+    assert "Avg watts" in text
+    assert "Interpretation level:" in text
+
+
+def test_session_bundle_markdown_is_factual_and_private(
+    tmp_path: Path,
+) -> None:
+    """Written Markdown has fixed sections and no forbidden output."""
+    path = write_session_bundle_markdown(
+        _make_session_activities(), tmp_path
+    )
+    text = path.read_text(encoding="utf-8")
+    lowered = text.lower()
+    for heading in (
+        "# TCX Session Bundle",
+        "## Data Policy",
+        "## Export Scope",
+        "## Session Candidates",
+        "## Activities",
+        "## Lap Summaries",
+        "## Computed Split Metrics",
+        "## Data Quality",
+        "## Privacy",
+    ):
+        assert heading in text
+    assert "Suggested AI Analysis Questions" not in text
+    for phrase in (
+        "latitude",
+        "longitude",
+        "warmup",
+        "cooldown",
+        "you should",
+        "we recommend",
+    ):
+        assert phrase not in lowered

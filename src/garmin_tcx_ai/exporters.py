@@ -22,6 +22,10 @@ from pathlib import Path
 from typing import Any
 
 from garmin_tcx_ai.models import ParsedActivity
+from garmin_tcx_ai.session import (
+    build_session_bundle,
+    render_session_bundle_markdown,
+)
 from garmin_tcx_ai.summary import (
     build_ai_summary,
     render_ai_summary_markdown,
@@ -154,9 +158,9 @@ def write_ai_summary_json(
 
     The JSON is the :func:`build_ai_summary` payload: top-level keys
     ``activity_summary``, ``key_metrics``, ``lap_summary``,
-    ``trend_summary``, ``privacy``, ``data_quality`` and ``ai_context``.
-    ``None`` values are emitted as JSON ``null`` and ``datetime`` values
-    as ISO 8601 strings. Returns the path to the written file.
+    ``computed_split_metrics``, ``privacy``, ``data_quality`` and
+    ``data_policy``. ``None`` values are emitted as JSON ``null`` and
+    ``datetime`` values as ISO 8601 strings. Returns the written path.
     """
     folder = _output_folder(activity, output_dir)
     summary = build_ai_summary(activity)
@@ -190,6 +194,55 @@ def write_ai_summary_markdown(
 
     target = folder / "ai_summary.md"
     target.write_text(text, encoding="utf-8", newline="\n")
+    return target
+
+
+def write_session_bundle_json(
+    activities: list[ParsedActivity],
+    output_dir: Path,
+    max_gap_minutes: int = 30,
+    timezone_name: str = "Asia/Taipei",
+) -> Path:
+    """Write session_bundle.json for multiple normalized activities."""
+    folder = Path(output_dir) / "session_bundle"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / "session_bundle.json"
+    with target.open("w", encoding="utf-8", newline="\n") as fh:
+        json.dump(
+            build_session_bundle(
+                activities,
+                max_gap_minutes,
+                timezone_name,
+            ),
+            fh,
+            ensure_ascii=False,
+            indent=2,
+            default=_json_default,
+        )
+        fh.write("\n")
+    return target
+
+
+def write_session_bundle_markdown(
+    activities: list[ParsedActivity],
+    output_dir: Path,
+    max_gap_minutes: int = 30,
+    timezone_name: str = "Asia/Taipei",
+) -> Path:
+    """Write session_bundle.md for multiple normalized activities."""
+    folder = Path(output_dir) / "session_bundle"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / "session_bundle.md"
+    bundle = build_session_bundle(
+        activities,
+        max_gap_minutes,
+        timezone_name,
+    )
+    target.write_text(
+        render_session_bundle_markdown(bundle),
+        encoding="utf-8",
+        newline="\n",
+    )
     return target
 
 
