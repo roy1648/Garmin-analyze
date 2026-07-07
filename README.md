@@ -29,7 +29,8 @@ uv run garmin-tcx-ai bundle `
   --output data/processed/smoke_local `
   --gps-policy redact_start_end `
   --timezone Asia/Taipei `
-  --max-gap-minutes 30
+  --max-gap-minutes 30 `
+  --write-coach-handoff
 ```
 
 ### CLI 參數說明
@@ -38,8 +39,9 @@ uv run garmin-tcx-ai bundle `
 - `--output`：必填。指定輸出的目標資料夾。
 - `--gps-policy`：GPS 隱私政策，預設為 `redact_start_end`（模糊化起終點）。可選 `keep` 或 `remove`。
 - `--timezone`：本地時間轉換時區，預設為 `Asia/Taipei`。
-- `--max-gap-minutes`：活動間隔合併閾值（分鐘），預設為 `30`。
+- `--max-gap-minutes`：session candidate 分組的活動間隔門檻（分鐘），預設為 `30`。
 - `--write-atomic`：若加上此旗標，會額外輸出 per-activity 的除錯用詳細 artifacts (`activity.json`、`trackpoints.csv`、`ai_summary.json/md`)。
+- `--write-coach-handoff`：若加上此旗標，會額外在 `session_bundle` 目錄下產生 `coach_handoff.md`，內含 manual context 空白欄位及 session bundle 主要內容，可直接複製提供給跑步教練 Agent。
 
 ## 開發與測試
 

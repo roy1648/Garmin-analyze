@@ -288,3 +288,79 @@ def test_cli_directory_duplicate_activity_ids_no_overwrite(tmp_path: Path) -> No
     assert two_lap_folder.is_dir()
     assert (two_lap_folder / "activity.json").is_file()
     assert (two_lap_folder / "trackpoints.csv").is_file()
+
+
+def test_cli_without_coach_handoff(tmp_path: Path) -> None:
+    """CLI by default does not write coach_handoff.md."""
+    input_path = (
+        Path(__file__).parent / "fixtures" / "minimal_running.tcx"
+    )
+    output_dir = tmp_path / "output"
+
+    exit_code = main(
+        [
+            "bundle",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_dir),
+        ]
+    )
+
+    assert exit_code == 0
+    bundle_json = output_dir / "session_bundle" / "session_bundle.json"
+    bundle_md = output_dir / "session_bundle" / "session_bundle.md"
+    handoff_md = output_dir / "session_bundle" / "coach_handoff.md"
+
+    assert bundle_json.is_file()
+    assert bundle_md.is_file()
+    assert not handoff_md.exists()
+
+
+def test_cli_with_coach_handoff(tmp_path: Path) -> None:
+    """CLI writes coach_handoff.md when --write-coach-handoff is provided."""
+    input_path = (
+        Path(__file__).parent / "fixtures" / "minimal_running.tcx"
+    )
+    output_dir = tmp_path / "output"
+
+    exit_code = main(
+        [
+            "bundle",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_dir),
+            "--write-coach-handoff",
+        ]
+    )
+
+    assert exit_code == 0
+    bundle_json = output_dir / "session_bundle" / "session_bundle.json"
+    bundle_md = output_dir / "session_bundle" / "session_bundle.md"
+    handoff_md = output_dir / "session_bundle" / "coach_handoff.md"
+
+    assert bundle_json.is_file()
+    assert bundle_md.is_file()
+    assert handoff_md.is_file()
+
+    content = handoff_md.read_text(encoding="utf-8")
+    assert "# TCX Coach Handoff" in content
+    assert "這是多活動報告，每個 TCX 活動在報告中皆保持獨立紀錄。" in content
+    assert "- Planned Workout:" in content
+    assert "- RPE:" in content
+    assert "- Pain Before / During / After:" in content
+    assert "- Next Day Status:" in content
+    assert "- Notes:" in content
+
+    # Should contain core session bundle markdown content
+    assert "# TCX Multi-Activity Report" in content
+
+    # Safe check: no GPS or coaching/medical interpretation
+    assert "latitude" not in content.lower()
+    assert "longitude" not in content.lower()
+    assert "suggested_questions" not in content.lower()
+    assert "coaching_advice" not in content.lower()
+    assert "medical_interpretation" not in content.lower()
+    assert "Suggested Questions" not in content
+

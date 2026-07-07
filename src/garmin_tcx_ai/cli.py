@@ -16,6 +16,7 @@ from garmin_tcx_ai.exporters import (
     write_session_bundle_markdown,
     write_trackpoints_csv,
 )
+from garmin_tcx_ai.handoff import write_coach_handoff_markdown
 from garmin_tcx_ai.normalizer import normalize_activity
 from garmin_tcx_ai.parser import (
     TCXParseError,
@@ -143,6 +144,13 @@ def _run_bundle(args: argparse.Namespace) -> int:
             max_gap_minutes=args.max_gap_minutes,
             timezone_name=args.timezone,
         )
+        if args.write_coach_handoff:
+            write_coach_handoff_markdown(
+                normalized_activities,
+                output_dir,
+                max_gap_minutes=args.max_gap_minutes,
+                timezone_name=args.timezone,
+            )
     except ValueError as exc:
         print(f"Error building session bundle: {exc}", file=sys.stderr)
         return 1
@@ -241,6 +249,11 @@ def main(argv: list[str] | None = None) -> int:
         "--write-atomic",
         action="store_true",
         help="Additionally write per-activity debug/audit artifacts.",
+    )
+    bundle_parser.add_argument(
+        "--write-coach-handoff",
+        action="store_true",
+        help="Additionally write coach handoff Markdown report.",
     )
 
     args = parser.parse_args(argv)

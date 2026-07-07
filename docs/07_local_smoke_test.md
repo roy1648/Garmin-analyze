@@ -22,7 +22,8 @@ uv run garmin-tcx-ai bundle `
   --output data/processed/cli_fixture_smoke `
   --gps-policy redact_start_end `
   --timezone Asia/Taipei `
-  --max-gap-minutes 30
+  --max-gap-minutes 30 `
+  --write-coach-handoff
 ```
 
 ### 預期終端機輸出
@@ -42,6 +43,7 @@ Output folder: <專案路徑>/data/processed/cli_fixture_smoke
   ```text
   data/processed/cli_fixture_smoke/session_bundle/session_bundle.json
   data/processed/cli_fixture_smoke/session_bundle/session_bundle.md
+  data/processed/cli_fixture_smoke/session_bundle/coach_handoff.md (若加上 --write-coach-handoff)
   ```
 - **詳細輸出**：若指令加上 `--write-atomic` 參數，則會額外輸出每個活動的 debug 檔案（例如 `activity.json`、`trackpoints.csv` 等）。
 
@@ -49,4 +51,4 @@ Output folder: <專案路徑>/data/processed/cli_fixture_smoke
 
 > [!CAUTION]
 > - 輸出的 `data/processed/` 資料夾已被列入 `.gitignore`。
-> - **切勿**將個人真實的活動檔案（位於 `data/raw/` 或 `data/processed/`）提交至 Git 中。
+> - **切勿**提交 `data/raw/`、`data/samples/` 或 `data/processed/` 內的私人 Garmin 資料與輸出。
