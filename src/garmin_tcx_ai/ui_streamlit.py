@@ -115,6 +115,33 @@ def _init_session_state() -> None:
         st.session_state.output_path_val = st.session_state.default_output
 
 
+def _apply_dialog_result(dlg, state_key: str, notice_key: str) -> None:
+    """Apply a DialogResult to session state from a widget on_click callback.
+
+    Callbacks run before the script body re-executes, so it is safe here
+    to assign ``st.session_state[state_key]`` even though a widget with
+    that key will be instantiated later in the same rerun.
+    """
+    if dlg.success:
+        st.session_state[state_key] = dlg.path_text
+        st.session_state.pop(notice_key, None)
+    else:
+        level = "info" if "未選擇" in dlg.message else "warning"
+        st.session_state[notice_key] = (level, dlg.message)
+
+
+def _show_notice(notice_key: str) -> None:
+    """Render a stored dialog notice, if any."""
+    notice = st.session_state.get(notice_key)
+    if notice is None:
+        return
+    level, message = notice
+    if level == "info":
+        st.info(message)
+    else:
+        st.warning(message)
+
+
 def main() -> None:
     """Run the Streamlit Local UI application."""
     st.set_page_config(
@@ -178,36 +205,41 @@ def main() -> None:
         col_in, col_btn_file, col_btn_dir = st.columns(
             [3, 1, 1], vertical_alignment="bottom"
         )
+
+        def _on_pick_tcx_file() -> None:
+            _apply_dialog_result(
+                select_tcx_file_dialog(), "input_path_val", "_input_notice"
+            )
+
+        def _on_pick_tcx_dir() -> None:
+            _apply_dialog_result(
+                select_directory_dialog("選擇包含 TCX 的資料夾"),
+                "input_path_val",
+                "_input_notice",
+            )
+
+        with col_btn_file:
+            st.button(
+                "選擇 TCX 檔案",
+                key="btn_tcx_file",
+                on_click=_on_pick_tcx_file,
+            )
+
+        with col_btn_dir:
+            st.button(
+                "選擇 TCX 資料夾",
+                key="btn_tcx_dir",
+                on_click=_on_pick_tcx_dir,
+            )
+
         with col_in:
             input_path_str = st.text_input(
                 "Input path (TCX 檔案或資料夾路徑)",
-                value=st.session_state.input_path_val,
                 help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
-                key="input_path_text",
+                key="input_path_val",
             )
-            st.session_state.input_path_val = input_path_str
 
-        with col_btn_file:
-            if st.button("選擇 TCX 檔案", key="btn_tcx_file"):
-                dlg = select_tcx_file_dialog()
-                if dlg.success:
-                    st.session_state.input_path_val = dlg.path_text
-                    st.rerun()
-                elif "未選擇" in dlg.message:
-                    st.info(dlg.message)
-                else:
-                    st.warning(dlg.message)
-
-        with col_btn_dir:
-            if st.button("選擇 TCX 資料夾", key="btn_tcx_dir"):
-                dlg = select_directory_dialog("選擇包含 TCX 的資料夾")
-                if dlg.success:
-                    st.session_state.input_path_val = dlg.path_text
-                    st.rerun()
-                elif "未選擇" in dlg.message:
-                    st.info(dlg.message)
-                else:
-                    st.warning(dlg.message)
+        _show_notice("_input_notice")
 
         # Immediate input path validation
         path_status = inspect_input_path(input_path_str)
@@ -223,31 +255,38 @@ def main() -> None:
         col_out, col_btn_out = st.columns(
             [3, 1], vertical_alignment="bottom"
         )
-        with col_out:
-            output_dir_str = st.text_input(
-                "Output folder (輸出資料夾)",
-                value=st.session_state.output_path_val,
-                help="轉換後的結果儲存目錄。留空將使用自動產生的預設資料夾。",
-                key="output_path_text",
+
+        def _on_pick_output_dir() -> None:
+            _apply_dialog_result(
+                select_directory_dialog("選擇輸出資料夾"),
+                "output_path_val",
+                "_output_notice",
             )
-            st.session_state.output_path_val = output_dir_str
 
-        with col_btn_out:
-            if st.button("選擇輸出資料夾", key="btn_out_dir"):
-                dlg = select_directory_dialog("選擇輸出資料夾")
-                if dlg.success:
-                    st.session_state.output_path_val = dlg.path_text
-                    st.rerun()
-                elif "未選擇" in dlg.message:
-                    st.info(dlg.message)
-                else:
-                    st.warning(dlg.message)
-
-        if st.button("重新產生預設輸出資料夾"):
+        def _on_reset_default_output() -> None:
             new_default = str(default_output_dir())
             st.session_state.default_output = new_default
             st.session_state.output_path_val = new_default
-            st.rerun()
+
+        with col_btn_out:
+            st.button(
+                "選擇輸出資料夾",
+                key="btn_out_dir",
+                on_click=_on_pick_output_dir,
+            )
+
+        with col_out:
+            output_dir_str = st.text_input(
+                "Output folder (輸出資料夾)",
+                help="轉換後的結果儲存目錄。留空將使用自動產生的預設資料夾。",
+                key="output_path_val",
+            )
+
+        _show_notice("_output_notice")
+
+        st.button(
+            "重新產生預設輸出資料夾", on_click=_on_reset_default_output
+        )
 
         st.markdown("**輸出選項**")
         write_coach_handoff = st.checkbox(
