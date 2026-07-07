@@ -244,3 +244,47 @@ def test_cli_session_bundle_safety(tmp_path: Path) -> None:
         assert session["role_inference"] == "disabled"
         assert "suggested_questions" not in session
         assert "coaching_advice" not in session
+
+
+def test_cli_directory_duplicate_activity_ids_no_overwrite(tmp_path: Path) -> None:
+    """CLI avoids overwriting atomic files when duplicate activity IDs are found."""
+    fixtures_dir = Path(__file__).parent / "fixtures"
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+
+    # Both minimal_running and two_lap_running have the same activity ID 2000-01-01T00:00:00Z
+    shutil.copy(
+        fixtures_dir / "minimal_running.tcx",
+        input_dir / "minimal_running.tcx",
+    )
+    shutil.copy(
+        fixtures_dir / "two_lap_running.tcx",
+        input_dir / "two_lap_running.tcx",
+    )
+
+    output_dir = tmp_path / "output"
+
+    exit_code = main(
+        [
+            "bundle",
+            "--input",
+            str(input_dir),
+            "--output",
+            str(output_dir),
+            "--write-atomic",
+        ]
+    )
+
+    assert exit_code == 0
+
+    # Ensure separate directories exist for each source file's atomic files
+    min_run_folder = output_dir / "minimal_running" / "2000-01-01T00_00_00Z"
+    two_lap_folder = output_dir / "two_lap_running" / "2000-01-01T00_00_00Z"
+
+    assert min_run_folder.is_dir()
+    assert (min_run_folder / "activity.json").is_file()
+    assert (min_run_folder / "trackpoints.csv").is_file()
+
+    assert two_lap_folder.is_dir()
+    assert (two_lap_folder / "activity.json").is_file()
+    assert (two_lap_folder / "trackpoints.csv").is_file()

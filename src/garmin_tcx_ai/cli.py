@@ -8,6 +8,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from garmin_tcx_ai.exporters import (
+    safe_activity_id,
     write_activity_json,
     write_ai_summary_json,
     write_ai_summary_markdown,
@@ -148,11 +149,46 @@ def _run_bundle(args: argparse.Namespace) -> int:
 
     # 8. Write atomic if requested
     if args.write_atomic:
+        seen_ids = {}
         for activity in normalized_activities:
-            write_activity_json(activity, output_dir)
-            write_trackpoints_csv(activity, output_dir)
-            write_ai_summary_json(activity, output_dir)
-            write_ai_summary_markdown(activity, output_dir)
+            sid = safe_activity_id(
+                activity.activity.activity_id,
+                activity.source.file_name,
+            )
+            seen_ids[sid] = seen_ids.get(sid, 0) + 1
+
+        collision_ids = {
+            sid for sid, count in seen_ids.items() if count > 1
+        }
+
+        seen_dirs = set()
+        for activity in normalized_activities:
+            sid = safe_activity_id(
+                activity.activity.activity_id,
+                activity.source.file_name,
+            )
+            if sid in collision_ids:
+                stem = (
+                    Path(activity.source.file_name).stem
+                    if activity.source.file_name
+                    else "activity"
+                )
+                safe_stem = safe_activity_id(stem)
+                candidate_dir = output_dir / safe_stem
+                counter = 1
+                while candidate_dir in seen_dirs:
+                    candidate_dir = output_dir / f"{safe_stem}_{counter}"
+                    counter += 1
+                target_dir = candidate_dir
+            else:
+                target_dir = output_dir
+
+            seen_dirs.add(target_dir)
+
+            write_activity_json(activity, target_dir)
+            write_trackpoints_csv(activity, target_dir)
+            write_ai_summary_json(activity, target_dir)
+            write_ai_summary_markdown(activity, target_dir)
 
     # 9. Print success summary
     print(
