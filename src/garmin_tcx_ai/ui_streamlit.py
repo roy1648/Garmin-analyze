@@ -93,6 +93,17 @@ def render_copy_button_or_text_area(
         height=45,
     )
 
+    with st.expander(f"{label}（手動複製）", expanded=False):
+        st.text_area(
+            f"{label}（手動複製）",
+            value=text,
+            height=150,
+            key=f"manual_copy_{key}",
+            label_visibility="collapsed",
+            help="請點進文字框，全選後複製。",
+        )
+        st.caption("請點進文字框，全選後複製。")
+
 
 def _init_session_state() -> None:
     """Initialise stable session state keys if not already set."""
