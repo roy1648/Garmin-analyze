@@ -389,14 +389,15 @@ def test_single_activity_session_bundle_markdown_is_standard_output(
     activity.trackpoints[0].power_watts = 210
     path = write_session_bundle_markdown([activity], tmp_path)
     text = path.read_text(encoding="utf-8")
-    assert text.splitlines()[0] == "# TCX 多活動報告"
+    assert text.splitlines()[0] == "# TCX Multi-Activity Report"
+    assert text.splitlines()[1] == "# TCX 多活動報告"
     assert (
         "這並不代表將它們合併為單次記錄的運動"
         in text
     )
     assert path == tmp_path / "session_bundle" / "session_bundle.md"
     assert "- 活動紀錄：1" in text
-    assert "- Session Candidate 候選分組：1" in text
+    assert "- Session 候選分組：1" in text
     assert "- 本地日期：2026-05-01" in text
     assert "- 時區：Asia/Taipei" in text
     assert "- 平均原始跑步步頻：82.0" in text
@@ -418,20 +419,29 @@ def test_session_bundle_markdown_is_factual_and_private(
     text = path.read_text(encoding="utf-8")
     lowered = text.lower()
     for heading in (
+        "# TCX Multi-Activity Report",
         "# TCX 多活動報告",
+        "## Data Policy",
         "## 資料政策",
+        "## Export Scope",
         "## 輸出範圍",
-        "## Session Candidate 候選分組",
+        "## Session Candidates",
+        "## Session 候選分組",
+        "## Activities",
         "## 活動紀錄",
+        "## Lap Summaries",
         "## Lap 摘要",
+        "## Computed Split Metrics",
         "## 固定公式分段指標",
+        "## Data Quality",
         "## 資料品質",
+        "## Privacy",
         "## 隱私保護",
     ):
         assert heading in text
     assert "Suggested AI Analysis Questions" not in text
     assert (
-        "Session Candidate 候選分組為供審閱的候選活動分組"
+        "Session 候選分組為供審閱的候選活動分組"
         in text
     )
     assert (

@@ -377,6 +377,8 @@ def test_markdown_removes_questions_and_semantic_output(tmp_path: Path) -> None:
     assert "Suggested AI Analysis Questions" not in text
     assert "## 固定公式分段指標" in text
     assert "## 資料政策" in text
+    assert "課表／活動角色推論：已停用。" in text
+    assert "運動角色推論" not in text
     for label in FORBIDDEN_LABELS:
         assert label not in lowered
     for phrase in ("you should", "we recommend", "diagnosis"):

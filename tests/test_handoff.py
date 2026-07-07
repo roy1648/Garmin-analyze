@@ -83,10 +83,14 @@ def test_render_coach_handoff_markdown() -> None:
     assert "- 補充說明：" in md
 
     # 3. Check that it contains session bundle content
+    assert "# TCX Multi-Activity Report" in md
     assert "# TCX 多活動報告" in md
+    assert "## Data Policy" in md
     assert "## 資料政策" in md
+    assert "## Export Scope" in md
     assert "## 輸出範圍" in md
-    assert "## Session Candidate 候選分組" in md
+    assert "## Session Candidates" in md
+    assert "## Session 候選分組" in md
 
     # 4. Check safety rules (no GPS, no interpretations/coaching advice)
     assert "latitude" not in md

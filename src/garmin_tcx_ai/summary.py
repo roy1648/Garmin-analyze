@@ -175,7 +175,7 @@ def render_ai_summary_markdown(summary: dict) -> str:
     policy = summary["data_policy"]
     lines += [
         f"- 來源：{_md(policy['source'])}",
-        "- 運動角色推論：已停用。",
+        "- 課表／活動角色推論：已停用。",
         "- 教練建議：已停用。",
         "- 醫療判斷：已停用。",
         "",
@@ -753,7 +753,7 @@ def _translate_value(val: object) -> str:
     val_str = str(val)
     translations = {
         "unavailable": "無資料",
-        "unavailable (not inferred)": "無資料（未推論）",
+        "unavailable (not inferred)": "未標記（未推論）",
         "placeholders only; not inferred": "僅為手動填寫欄位，未從 TCX 推論",
         "Running": "跑步",
         "running": "跑步",
@@ -802,7 +802,7 @@ def _translate_note(note: str) -> str:
         "Some key fields are missing; see missing_key_fields.":
             "部分關鍵欄位缺失，請參閱 missing_key_fields。",
         "Activities with missing start_time are separate session candidates.":
-            "缺少 start_time 的活動將作為獨立的 Session Candidate 候選分組。",
+            "缺少 start_time 的活動將作為獨立的 Session 候選分組。",
         "Missing start_time prevents grouping with other activities.":
             "缺少 start_time，無法與其他活動進行分組。",
         "At least one activity has missing distance data.":

@@ -105,36 +105,40 @@ def render_session_bundle_markdown(bundle: dict) -> str:
     quality = bundle["data_quality"]
     privacy = bundle["privacy"]
     lines = [
+        "# TCX Multi-Activity Report",
         "# TCX 多活動報告",
         "",
         "本報告封裝一或多個 TCX 活動以供 AI 讀取審閱。這並不代表將它們合併為單次記錄的運動。",
         "",
+        "## Data Policy",
         "## 資料政策",
         "",
         "- Session 分組僅為候選分組，而非記錄事實。",
-        "- Session Candidate 候選分組為供審閱的候選活動分組；它們不會將活動合併為單次記錄的運動。",
+        "- Session 候選分組為供審閱的候選活動分組；它們不會將活動合併為單次記錄的運動。",
         "- 角色推論已停用。",
         "- 活動角色未推論。",
-        f"- 運動角色推論已停用："
+        f"- 課表／活動角色推論已停用："
         f"{policy['no_workout_role_inference']}",
         "- 手動補充資訊欄位僅為預留位置，未從 TCX 推論。",
         "- 步頻值為原始 Garmin RunCadence 值；未套用步頻 2 倍換算。",
         "",
+        "## Export Scope",
         "## 輸出範圍",
         "",
         f"- 活動紀錄：{scope['activity_count']}",
-        f"- Session Candidate 候選分組：{scope['session_candidate_count']}",
+        f"- Session 候選分組：{scope['session_candidate_count']}",
         "",
-        "## Session Candidate 候選分組",
+        "## Session Candidates",
+        "## Session 候選分組",
         "",
     ]
 
     if not bundle["sessions"]:
-        lines.extend(["無 Session Candidate 候選分組。", ""])
+        lines.extend(["無 Session 候選分組。", ""])
     for session in bundle["sessions"]:
         lines.extend(_session_markdown(session))
 
-    lines.extend(["## 活動紀錄", ""])
+    lines.extend(["## Activities", "## 活動紀錄", ""])
     for session in bundle["sessions"]:
         for activity in session["activities"]:
             item = activity["activity_summary"]
@@ -155,23 +159,24 @@ def render_session_bundle_markdown(bundle: dict) -> str:
                     f"{_md(activity['key_metrics']['cadence']['avg_run_cadence_raw'])}",
                     "- 平均功率："
                     f"{_md(activity['key_metrics']['power']['avg_watts'])}",
-                    "- 角色：無資料（未推論）",
+                    "- 角色：未標記（未推論）",
                     "",
                 ]
             )
 
-    lines.extend(["## Lap 摘要", ""])
+    lines.extend(["## Lap Summaries", "## Lap 摘要", ""])
     for session in bundle["sessions"]:
         for activity in session["activities"]:
             lines.extend(_laps_markdown(activity))
 
-    lines.extend(["## 固定公式分段指標", ""])
+    lines.extend(["## Computed Split Metrics", "## 固定公式分段指標", ""])
     for session in bundle["sessions"]:
         for activity in session["activities"]:
             lines.extend(_split_markdown(activity))
 
     lines.extend(
         [
+            "## Data Quality",
             "## 資料品質",
             "",
             f"- 來源警告：{quality['source_warning_count']}",
@@ -187,6 +192,7 @@ def render_session_bundle_markdown(bundle: dict) -> str:
     lines.extend(
         [
             "",
+            "## Privacy",
             "## 隱私保護",
             "",
             f"- GPS 政策：{', '.join(_translate_value(p) for p in privacy['gps_policies']) or '無'}",
@@ -516,7 +522,7 @@ def _translate_value(val: object) -> str:
     val_str = str(val)
     translations = {
         "unavailable": "無資料",
-        "unavailable (not inferred)": "無資料（未推論）",
+        "unavailable (not inferred)": "未標記（未推論）",
         "placeholders only; not inferred": "僅為手動填寫欄位，未從 TCX 推論",
         "Running": "跑步",
         "running": "跑步",
@@ -565,7 +571,7 @@ def _translate_note(note: str) -> str:
         "Some key fields are missing; see missing_key_fields.":
             "部分關鍵欄位缺失，請參閱 missing_key_fields。",
         "Activities with missing start_time are separate session candidates.":
-            "缺少 start_time 的活動將作為獨立的 Session Candidate 候選分組。",
+            "缺少 start_time 的活動將作為獨立的 Session 候選分組。",
         "Missing start_time prevents grouping with other activities.":
             "缺少 start_time，無法與其他活動進行分組。",
         "At least one activity has missing distance data.":
@@ -643,7 +649,7 @@ def _laps_markdown(activity: dict) -> list[str]:
             f"| {_md(lap['reliability_reason'])} "
             f"| {_md(lap['cadence']['avg_run_cadence_raw'])} "
             f"| {_md(lap['power']['avg_watts'])} "
-            "| 無資料（未推論） |"
+            "| 未標記（未推論） |"
         )
     lines.append("")
     return lines
