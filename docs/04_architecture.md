@@ -34,14 +34,16 @@ TCX activity identity，不會將多個 activities 合成一個 recorded workout
 ## 2. Module Responsibility
 
 ```text
-CLI (cli.py) / TCX file(s)
-  -> parser.py
-  -> normalizer.py
-  -> privacy.py
-  -> summary.py
-  -> session.py
-  -> exporters.py
+CLI (cli.py) / UI
+  -> pipeline.py (run_bundle)
+    -> parser.py
+    -> normalizer.py
+    -> privacy.py
+    -> summary.py
+    -> session.py
+    -> exporters.py
 ```
+
 
 ### 2.1 `parser.py`
 
@@ -127,10 +129,20 @@ Exporters 不解析 TCX，也不加入 business logic 或 inference。
 
 - 提供 `garmin-tcx-ai` 命令與 `bundle` 子命令的進入點。
 - 使用 `argparse` 解析命令列參數（如 `--input`、`--output`、`--gps-policy`、`--timezone`、`--max-gap-minutes`、`--write-atomic`、`--write-coach-handoff`）。
-- 協調（Orchestration）整個轉換流程：讀取檔案、呼叫 parser 與 normalizer、套用隱私政策，並透過 exporters 輸出。
+- 透過 `BundleRunConfig` 與 `run_bundle()` 呼叫 pipeline 執行整個轉換流程，不再直接處理協調邏輯。
 - 處理環境異常（如檔案不存在、無效時區或合併間隔為負值），提供友善的錯誤訊息並返回對應的 exit code。
 
 CLI 不加入任何 business logic 或核心資料推論。
+
+### 2.8 `pipeline.py`
+
+責任：
+
+- 這是 application use-case layer。
+- Core pipeline modules remain responsible for parsing, normalization, privacy, and exporting.
+- `pipeline.py` is the application use-case layer.
+- CLI and future local UI must call `run_bundle()` instead of duplicating orchestration logic.
+
 
 ## 3. Session Bundle API
 

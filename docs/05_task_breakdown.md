@@ -243,3 +243,18 @@ scope creep。
 - pytest 單元測試能成功斷言這 4 個英文契約句的存在。
 - 文件與 README 完成收斂與整理。
 - **MVP 收斂公告**：本專案已正式進入關閉與收斂模式 (closure mode)。未來所有 PR 均不得新增支線或主要功能（例如：HR zone、Garmin zone、AI coaching、課表角色推論、週報、UI、資料庫、Garmin API、NotebookLM、OpenAI/Claude/Gemini API），除非使用者明確改變專案範疇並批准。
+
+## Phase 15：Shared Pipeline Use Case for CLI and UI
+
+目標：
+- 將 CLI 的核心 bundle 執行流程抽出成 `pipeline.run_bundle()`。
+- CLI 與未來 UI 共用同一個 execution path。
+- 保留 CLI 既有行為與輸出契約。
+
+完成條件：
+- 新增 `BundleRunConfig` 與 `BundleRunResult`。
+- CLI 改為呼叫 shared pipeline。
+- 既有 CLI tests 全部通過。
+- 新增 pipeline unit tests。
+- 不新增 UI、不新增依賴、不修改 parser/normalizer/exporter/session contract。
+
