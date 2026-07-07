@@ -73,25 +73,27 @@ uv run garmin-tcx-ai bundle `
 
 ## 本機 UI 介面
 
-啟動 Streamlit Local UI：
+啟動：
 
 ```powershell
-uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py --server.address localhost
+uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
 ```
 
-使用方式：
+使用流程：
 
 1. 在 Input path 輸入單一 `.tcx` 檔案路徑，或包含 `.tcx` 的資料夾路徑。
-2. 確認 output folder。
-3. 選擇 GPS policy、timezone、max gap minutes。
-4. 選擇是否產生 coach handoff 或 atomic artifacts。
-5. 按下「開始轉換」。
-6. 在頁面中查看輸出路徑、warnings、`session_bundle.md` 與 `coach_handoff.md` 預覽。
+2. UI 會先檢查路徑是否存在，以及可偵測到幾個 TCX 檔案。
+3. 確認或重新產生 output folder。
+4. 一般情況只需要保留預設參數。
+5. 需要時再展開「進階設定」調整 GPS policy、timezone、max gap minutes 或 atomic artifacts。
+6. 按下「開始轉換」。
+7. 查看輸出狀態、warnings、Markdown 預覽，並可下載 Markdown 檔案。
 
 提示：
 - UI 僅在本機執行。
 - 不會上傳 Garmin 資料。
 - 輸出仍遵守既有 session bundle contract。
 - CLI 仍可繼續使用。
+
 
 
