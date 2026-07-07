@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import importlib
 import os
 from pathlib import Path
 import subprocess
@@ -298,7 +299,8 @@ def _create_hidden_tk_root():  # type: ignore[return]
 def select_tcx_file_dialog() -> DialogResult:
     """Open a native dialog for selecting one .tcx file.
 
-    Uses Python standard library tkinter only (lazy import).
+    Uses Python standard library tkinter only (lazy import via importlib).
+    Falls back gracefully when tkinter is unavailable (e.g., headless CI).
 
     Returns:
         DialogResult with success flag, selected path, and user message.
@@ -306,8 +308,11 @@ def select_tcx_file_dialog() -> DialogResult:
     try:
         root = _create_hidden_tk_root()
         try:
-            from tkinter import filedialog  # lazy import
-            file_path: str = filedialog.askopenfilename(
+            # Use importlib + sys.modules so that monkeypatch.setitem on
+            # sys.modules["tkinter.filedialog"] works in headless CI tests.
+            importlib.import_module("tkinter.filedialog")
+            fd = sys.modules["tkinter.filedialog"]
+            file_path: str = fd.askopenfilename(
                 parent=root,
                 title="選擇 TCX 檔案",
                 filetypes=[("TCX files", "*.tcx"), ("All files", "*.*")],
@@ -337,7 +342,8 @@ def select_tcx_file_dialog() -> DialogResult:
 def select_directory_dialog(title: str = "選擇資料夾") -> DialogResult:
     """Open a native dialog for selecting a directory.
 
-    Uses Python standard library tkinter only (lazy import).
+    Uses Python standard library tkinter only (lazy import via importlib).
+    Falls back gracefully when tkinter is unavailable (e.g., headless CI).
 
     Args:
         title: The title shown in the native dialog window.
@@ -348,8 +354,11 @@ def select_directory_dialog(title: str = "選擇資料夾") -> DialogResult:
     try:
         root = _create_hidden_tk_root()
         try:
-            from tkinter import filedialog  # lazy import
-            folder_path: str = filedialog.askdirectory(
+            # Use importlib + sys.modules so that monkeypatch.setitem on
+            # sys.modules["tkinter.filedialog"] works in headless CI tests.
+            importlib.import_module("tkinter.filedialog")
+            fd = sys.modules["tkinter.filedialog"]
+            folder_path: str = fd.askdirectory(
                 parent=root,
                 title=title,
             )
