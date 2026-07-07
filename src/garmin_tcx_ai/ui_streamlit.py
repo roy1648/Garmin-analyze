@@ -170,6 +170,8 @@ def main() -> None:
             status = inspect_input_path(input_path_str)
             if not status.is_valid:
                 st.error(f"無法執行：{status.message}")
+                if "run_result" in st.session_state:
+                    del st.session_state["run_result"]
             else:
                 normalized_out = normalize_output_path(output_dir_str)
                 config = BundleRunConfig(
