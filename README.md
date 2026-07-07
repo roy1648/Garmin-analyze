@@ -56,3 +56,18 @@ uv run python -m pytest -q
 ```powershell
 uv run python -m ruff check src tests --no-cache
 ```
+
+## 本機 Smoke 測試
+
+使用已提交的測試資料 (Sanitized Fixtures) 驗證 CLI：
+
+```powershell
+uv run garmin-tcx-ai bundle `
+  --input tests/fixtures `
+  --output data/processed/cli_fixture_smoke `
+  --gps-policy redact_start_end `
+  --timezone Asia/Taipei `
+  --max-gap-minutes 30 `
+  --write-coach-handoff
+```
+

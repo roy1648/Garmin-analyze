@@ -152,8 +152,8 @@ Lap summary 必須驗證：
 
 - Report title must not imply that multiple TCX files were merged into one
   workout.
-- Markdown must state that session candidates are candidate activity groups,
-  not one recorded workout.
+- Session candidates are candidate activity groups for review; they do not
+  merge activities into one recorded workout.
 - This report packages one or more TCX activities for AI-readable review.
   It does not merge them into one recorded workout.
 - Manual context fields are placeholders only and were not inferred from TCX.
