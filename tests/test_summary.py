@@ -28,10 +28,13 @@ FORBIDDEN_LABELS = (
     "stable",
     "warmup",
     "cooldown",
-    "interval",
     "tempo",
     "recovery",
     "long_run",
+    "long run",
+    "quality session",
+    "quality_session",
+    "collapse",
 )
 
 
@@ -99,12 +102,16 @@ def _split_trackpoints(
         distance = index * 1000.0
         if index:
             elapsed += first_pace if index <= 5 else second_pace
+        lap_index = 1 if index <= 5 else 2
         result.append(
             Trackpoint(
                 trackpoint_index=index + 1,
+                lap_index=lap_index,
                 timestamp=START + timedelta(seconds=elapsed),
                 distance_meters=distance,
                 heart_rate_bpm=(first_hr if index <= 5 else second_hr),
+                run_cadence_spm=80 + index,
+                power_watts=200 + (index * 2),
             )
         )
     return result
@@ -131,6 +138,11 @@ def test_activity_and_key_metric_fixed_formulas() -> None:
     summary = build_ai_summary(_make_activity())
     assert summary["activity_summary"]["duration_minutes"] == 60.0
     assert summary["activity_summary"]["distance_km"] == 10.0
+    assert summary["activity_summary"]["start_time_local"] == (
+        "2026-05-01T14:30:00+08:00"
+    )
+    assert summary["activity_summary"]["timezone"] == "Asia/Taipei"
+    assert summary["activity_summary"]["local_date"] == "2026-05-01"
     assert summary["key_metrics"]["average_pace_seconds_per_km"] == 360.0
     assert summary["key_metrics"]["average_pace_formatted"] == "06:00/km"
 
@@ -150,6 +162,28 @@ def test_lap_role_is_explicitly_not_inferred() -> None:
     assert all(lap["role_source"] == "not_inferred" for lap in laps)
 
 
+def test_lap_pace_reliability_uses_fixed_distance_rules() -> None:
+    """Lap pace reliability is a data-quality flag, not interpretation."""
+    laps = [
+        Lap(lap_index=1, total_time_seconds=None, distance_meters=100.0),
+        Lap(lap_index=2, total_time_seconds=60.0, distance_meters=0.0),
+        Lap(lap_index=3, total_time_seconds=60.0, distance_meters=90.0),
+        Lap(lap_index=4, total_time_seconds=60.0, distance_meters=100.0),
+        Lap(lap_index=5, total_time_seconds=60.0, distance_meters=300.0),
+    ]
+    result = build_ai_summary(_make_activity(laps=laps))["lap_summary"]
+    assert [
+        (lap["pace_reliability"], lap["reliability_reason"])
+        for lap in result
+    ] == [
+        ("invalid", "missing_distance_or_duration"),
+        ("invalid", "non_positive_distance_or_duration"),
+        ("low", "lap_distance_below_0.1km"),
+        ("medium", "lap_distance_between_0.1km_and_0.3km"),
+        ("high", "lap_distance_at_least_0.3km"),
+    ]
+
+
 def test_computed_split_metrics_report_numeric_deltas() -> None:
     """Second-half deltas equal second half minus first half."""
     summary = build_ai_summary(
@@ -165,6 +199,13 @@ def test_computed_split_metrics_report_numeric_deltas() -> None:
     assert split["pace_data_available"] is True
     assert split["heart_rate_data_available"] is True
     assert split["data_available"] is True
+    assert split["interpretation_level"] == (
+        "limited_for_interval_or_mixed_lap_activity"
+    )
+    assert (
+        "This split metric is a fixed-formula summary and must not be "
+        "interpreted as fatigue, workout quality, or workout type."
+    ) in split["notes"]
 
 
 def test_computed_split_metrics_contain_no_semantic_labels() -> None:
@@ -178,6 +219,8 @@ def test_computed_split_metrics_contain_no_semantic_labels() -> None:
     assert split["interpretation_policy"] == (
         "computed_metrics_only_no_training_interpretation"
     )
+    assert "decline" not in text
+    assert "main set" not in text
 
 
 def test_split_metrics_missing_distance_are_unavailable() -> None:
@@ -236,6 +279,52 @@ def test_data_policy_records_no_inference() -> None:
     assert policy["no_workout_role_inference"] is True
     assert policy["no_coaching_advice"] is True
     assert policy["no_medical_interpretation"] is True
+    assert policy["manual_context_fields_are_placeholders"] is True
+
+
+def test_cadence_and_power_are_raw_factual_metrics() -> None:
+    """Cadence and power are aggregated without conversion or judgment."""
+    summary = build_ai_summary(
+        _make_activity(trackpoints=_split_trackpoints())
+    )
+    cadence = summary["key_metrics"]["cadence"]
+    power = summary["key_metrics"]["power"]
+    assert cadence["avg_run_cadence_raw"] == 85.0
+    assert cadence["max_run_cadence_raw"] == 90
+    assert cadence["trackpoints_with_run_cadence_count"] == 11
+    assert cadence["avg_cadence_spm"] is None
+    assert cadence["conversion_rule"] is None
+    assert power["avg_watts"] == 210.0
+    assert power["max_watts"] == 220
+    assert power["trackpoints_with_power_count"] == 11
+    first_lap = summary["lap_summary"][0]
+    assert first_lap["cadence"]["avg_run_cadence_raw"] == 82.5
+    assert first_lap["cadence"]["max_run_cadence_raw"] == 85
+    assert first_lap["power"]["avg_watts"] == 205.0
+    assert first_lap["power"]["max_watts"] == 210
+
+
+def test_missing_cadence_and_power_are_null_with_zero_count() -> None:
+    """Optional cadence/power extensions stay null when unavailable."""
+    summary = build_ai_summary(_make_activity(trackpoints=[Trackpoint()]))
+    cadence = summary["key_metrics"]["cadence"]
+    power = summary["key_metrics"]["power"]
+    assert cadence["avg_run_cadence_raw"] is None
+    assert cadence["max_run_cadence_raw"] is None
+    assert cadence["trackpoints_with_run_cadence_count"] == 0
+    assert power["avg_watts"] is None
+    assert power["max_watts"] is None
+    assert power["trackpoints_with_power_count"] == 0
+
+
+def test_invalid_timezone_name_is_rejected() -> None:
+    """Invalid timezone names fail loudly instead of silently guessing."""
+    try:
+        build_ai_summary(_make_activity(), timezone_name="Invalid/Zone")
+    except ValueError as exc:
+        assert "timezone_name" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
 
 
 def test_summary_contains_no_coordinates_or_roles() -> None:
@@ -263,7 +352,10 @@ def test_data_quality_counts_warnings_and_coverage() -> None:
             "run.tcx",
         )
     ]
-    points = [Trackpoint(distance_meters=0.0), Trackpoint()]
+    points = [
+        Trackpoint(distance_meters=0.0, run_cadence_spm=82),
+        Trackpoint(power_watts=210),
+    ]
     quality = build_ai_summary(
         _make_activity(trackpoints=points, warnings=warnings)
     )["data_quality"]
@@ -271,6 +363,8 @@ def test_data_quality_counts_warnings_and_coverage() -> None:
     assert quality["warning_codes"] == ["missing_optional_field"]
     assert quality["trackpoints_count"] == 2
     assert quality["trackpoints_with_distance_count"] == 1
+    assert quality["trackpoints_with_run_cadence_count"] == 1
+    assert quality["trackpoints_with_power_count"] == 1
 
 
 def test_markdown_removes_questions_and_semantic_output(tmp_path: Path) -> None:

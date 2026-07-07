@@ -326,6 +326,33 @@ def test_session_bundle_json_has_complete_top_level_keys(
         "privacy",
     }
     assert data["export_scope"]["activity_count"] == 2
+    assert data["export_scope"]["contains_multiple_activities"] is True
+
+
+def test_single_activity_session_bundle_json_is_standard_output(
+    tmp_path: Path,
+) -> None:
+    """A single TCX still writes the coach-facing session bundle."""
+    activity = _make_activity()
+    activity.trackpoints[0].run_cadence_spm = 82
+    activity.trackpoints[0].power_watts = 210
+    path = write_session_bundle_json([activity], tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert path == tmp_path / "session_bundle" / "session_bundle.json"
+    assert data["export_scope"]["activity_count"] == 1
+    assert data["export_scope"]["session_candidate_count"] == 1
+    assert data["export_scope"]["contains_multiple_activities"] is False
+    assert data["sessions"][0]["manual_context"]["completion"] is None
+    assert data["sessions"][0]["timezone"] == "Asia/Taipei"
+    assert data["sessions"][0]["local_date"] == "2026-05-01"
+    activity = data["sessions"][0]["activities"][0]
+    assert activity["activity_summary"]["start_time_local"] == (
+        "2026-05-01T14:30:00+08:00"
+    )
+    assert activity["key_metrics"]["cadence"]["avg_run_cadence_raw"] == 82.0
+    assert activity["key_metrics"]["cadence"]["avg_cadence_spm"] is None
+    assert activity["key_metrics"]["cadence"]["conversion_rule"] is None
+    assert activity["key_metrics"]["power"]["avg_watts"] == 210.0
 
 
 def test_write_session_bundle_markdown_creates_fixed_path(
@@ -338,6 +365,29 @@ def test_write_session_bundle_markdown_creates_fixed_path(
     assert isinstance(path, Path)
     assert path == tmp_path / "session_bundle" / "session_bundle.md"
     assert path.exists()
+
+
+def test_single_activity_session_bundle_markdown_is_standard_output(
+    tmp_path: Path,
+) -> None:
+    """A single TCX writes session_bundle.md with coach-facing sections."""
+    activity = _make_activity()
+    activity.trackpoints[0].run_cadence_spm = 82
+    activity.trackpoints[0].power_watts = 210
+    path = write_session_bundle_markdown([activity], tmp_path)
+    text = path.read_text(encoding="utf-8")
+    assert path == tmp_path / "session_bundle" / "session_bundle.md"
+    assert "- Activities: 1" in text
+    assert "- Session candidates: 1" in text
+    assert "- Local date: 2026-05-01" in text
+    assert "- Timezone: Asia/Taipei" in text
+    assert "- Average run cadence raw: 82.0" in text
+    assert "- Average watts: 210.0" in text
+    assert "Pace reliability" in text
+    assert "Reliability reason" in text
+    assert "Avg cadence raw" in text
+    assert "Avg watts" in text
+    assert "Interpretation level:" in text
 
 
 def test_session_bundle_markdown_is_factual_and_private(

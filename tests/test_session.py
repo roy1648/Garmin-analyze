@@ -32,11 +32,14 @@ TOP_LEVEL_KEYS = {
 PROHIBITED_ROLES = (
     "warmup",
     "cooldown",
-    "interval",
     "tempo",
     "recovery",
     "long_run",
+    "long run",
     "quality_session",
+    "quality session",
+    "main set",
+    "collapse",
 )
 
 
@@ -49,6 +52,8 @@ def _activity(
     duration_seconds: float | None = 600.0,
     average_hr: int | None = 150,
     maximum_hr: int | None = 170,
+    run_cadence: int | None = None,
+    power: int | None = None,
 ) -> ParsedActivity:
     """Build one synthetic normalized activity."""
     trackpoint = Trackpoint(
@@ -57,6 +62,8 @@ def _activity(
         longitude=120.987654,
         distance_meters=0.0,
         heart_rate_bpm=average_hr,
+        run_cadence_spm=run_cadence,
+        power_watts=power,
     )
     return ParsedActivity(
         source=SourceInfo("tcx", name, f"data/raw/{name}"),
@@ -89,6 +96,12 @@ def test_bundle_top_level_and_data_policy_are_complete() -> None:
     bundle = build_session_bundle([_activity("one.tcx", START)])
     assert set(bundle) == TOP_LEVEL_KEYS
     assert bundle["schema_version"] == "tcx_training_data_v1"
+    assert bundle["export_scope"] == {
+        "type": "session_bundle",
+        "activity_count": 1,
+        "session_candidate_count": 1,
+        "contains_multiple_activities": False,
+    }
     policy = bundle["data_policy"]
     assert policy["activity_equals_one_tcx_file"] is True
     assert policy["session_may_contain_multiple_activities"] is True
@@ -96,6 +109,7 @@ def test_bundle_top_level_and_data_policy_are_complete() -> None:
     assert policy["no_workout_role_inference"] is True
     assert policy["no_coaching_advice"] is True
     assert policy["no_medical_interpretation"] is True
+    assert policy["manual_context_fields_are_placeholders"] is True
 
 
 def test_activities_are_sorted_and_grouped_within_gap() -> None:
@@ -115,6 +129,7 @@ def test_activities_are_sorted_and_grouped_within_gap() -> None:
         1,
         2,
     ]
+    assert bundle["export_scope"]["contains_multiple_activities"] is True
 
 
 def test_gap_over_limit_creates_separate_candidates() -> None:
@@ -152,8 +167,8 @@ def test_different_sport_creates_separate_candidates() -> None:
     assert len(bundle["sessions"]) == 2
 
 
-def test_different_recorded_start_date_creates_separate_candidates() -> None:
-    """Activities with different recorded start dates remain separate."""
+def test_different_local_date_creates_separate_candidates() -> None:
+    """Activities with different configured local dates remain separate."""
     bundle = build_session_bundle(
         [
             _activity("one.tcx", START),
@@ -161,6 +176,24 @@ def test_different_recorded_start_date_creates_separate_candidates() -> None:
         ]
     )
     assert len(bundle["sessions"]) == 2
+
+
+def test_grouping_uses_configured_local_date() -> None:
+    """Local date is derived by deterministic timezone conversion."""
+    first = datetime(2026, 7, 5, 15, 50, tzinfo=timezone.utc)
+    second = datetime(2026, 7, 5, 16, 10, tzinfo=timezone.utc)
+    taipei = build_session_bundle(
+        [_activity("one.tcx", first), _activity("two.tcx", second)],
+        timezone_name="Asia/Taipei",
+    )
+    utc = build_session_bundle(
+        [_activity("one.tcx", first), _activity("two.tcx", second)],
+        timezone_name="UTC",
+    )
+    assert len(taipei["sessions"]) == 2
+    assert len(utc["sessions"]) == 1
+    assert taipei["sessions"][0]["local_date"] == "2026-07-05"
+    assert taipei["sessions"][1]["local_date"] == "2026-07-06"
 
 
 def test_missing_start_time_is_singleton_with_quality_note() -> None:
@@ -228,15 +261,89 @@ def test_session_aggregates_use_fixed_formulas() -> None:
     assert session["maximum_heart_rate_bpm"] == 180
 
 
+def test_session_manual_context_is_placeholder_only() -> None:
+    """Manual context fields are null placeholders, never TCX guesses."""
+    context = build_session_bundle(
+        [_activity("one.tcx", START)]
+    )["sessions"][0]["manual_context"]
+    assert context == {
+        "planned_workout_text": None,
+        "planned_workout_source": "manual_only",
+        "completion": None,
+        "rpe_1_to_10": None,
+        "pain_before": None,
+        "pain_during": None,
+        "pain_after": None,
+        "next_day_status": None,
+    }
+
+
+def test_session_cadence_and_power_aggregate_trackpoints() -> None:
+    """Session cadence/power metrics aggregate raw trackpoint samples."""
+    session = build_session_bundle(
+        [
+            _activity("one.tcx", START, run_cadence=80, power=220),
+            _activity(
+                "two.tcx",
+                START + timedelta(minutes=20),
+                run_cadence=90,
+                power=240,
+            ),
+        ]
+    )["sessions"][0]
+    cadence = session["cadence"]
+    power = session["power"]
+    assert cadence["avg_run_cadence_raw"] == 85.0
+    assert cadence["max_run_cadence_raw"] == 90
+    assert cadence["trackpoints_with_run_cadence_count"] == 2
+    assert cadence["avg_cadence_spm"] is None
+    assert cadence["conversion_rule"] is None
+    assert power["avg_watts"] == 230.0
+    assert power["max_watts"] == 240
+    assert power["trackpoints_with_power_count"] == 2
+    assert session["data_quality"]["trackpoints_with_power_count"] == 2
+    assert (
+        session["data_quality"]["trackpoints_with_run_cadence_count"] == 2
+    )
+
+
+def test_activity_entries_include_local_time_and_raw_metrics() -> None:
+    """Each bundled activity carries coach-ready factual metric fields."""
+    activity = build_session_bundle(
+        [_activity("one.tcx", START, run_cadence=82, power=210)]
+    )["sessions"][0]["activities"][0]
+    assert activity["activity_summary"]["start_time_local"] == (
+        "2026-07-05T14:00:00+08:00"
+    )
+    assert activity["activity_summary"]["timezone"] == "Asia/Taipei"
+    assert activity["activity_summary"]["local_date"] == "2026-07-05"
+    assert activity["key_metrics"]["cadence"]["avg_run_cadence_raw"] == 82.0
+    assert activity["key_metrics"]["cadence"]["avg_cadence_spm"] is None
+    assert activity["key_metrics"]["cadence"]["conversion_rule"] is None
+    assert activity["key_metrics"]["power"]["avg_watts"] == 210.0
+    assert activity["lap_summary"][0]["pace_reliability"] == "high"
+    assert activity["lap_summary"][0]["reliability_reason"] == (
+        "lap_distance_at_least_0.3km"
+    )
+    assert activity["computed_split_metrics"]["interpretation_level"] == (
+        "limited_for_interval_or_mixed_lap_activity"
+    )
+
+
 def test_session_id_and_grouping_rule_are_stable() -> None:
     """Candidate identifiers and grouping rule are explicit."""
     session = build_session_bundle([_activity("one.tcx", START)])["sessions"][0]
     assert session["session_id"] == "2026-07-05_Running_001"
     assert session["grouping_rule"] == {
-        "same_recorded_start_date": True,
+        "same_local_date": True,
+        "timezone": "Asia/Taipei",
         "same_sport": True,
         "max_gap_minutes": 30,
     }
+    assert session["start_time_local"] == "2026-07-05T14:00:00+08:00"
+    assert session["end_time_local"] == "2026-07-05T14:10:00+08:00"
+    assert session["timezone"] == "Asia/Taipei"
+    assert session["local_date"] == "2026-07-05"
 
 
 def test_bundle_privacy_excludes_coordinates_and_routes() -> None:
@@ -289,3 +396,12 @@ def test_negative_gap_is_rejected() -> None:
     """A negative grouping gap is not a meaningful rule."""
     with pytest.raises(ValueError, match="max_gap_minutes"):
         build_session_bundle([], max_gap_minutes=-1)
+
+
+def test_invalid_timezone_name_is_rejected() -> None:
+    """Invalid timezone names raise instead of falling back silently."""
+    with pytest.raises(ValueError, match="timezone_name"):
+        build_session_bundle(
+            [_activity("one.tcx", START)],
+            timezone_name="Invalid/Zone",
+        )

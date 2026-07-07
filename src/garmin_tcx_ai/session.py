@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from garmin_tcx_ai.models import ParsedActivity
+from garmin_tcx_ai.models import ParsedActivity, Trackpoint
 from garmin_tcx_ai.summary import build_ai_summary
 
 SCHEMA_VERSION = "tcx_training_data_v1"
@@ -15,22 +16,40 @@ SCHEMA_VERSION = "tcx_training_data_v1"
 def build_session_bundle(
     activities: list[ParsedActivity],
     max_gap_minutes: int = 30,
+    timezone_name: str = "Asia/Taipei",
 ) -> dict:
     """Build a no-inference session bundle from normalized activities."""
     if max_gap_minutes < 0:
         raise ValueError("max_gap_minutes must be greater than or equal to 0")
+    zone = _timezone(timezone_name)
 
     ordered = sorted(activities, key=_sort_key)
-    groups = _group_activities(ordered, max_gap_minutes)
+    groups = _group_activities(ordered, max_gap_minutes, zone)
     counters: dict[tuple[str, str], int] = {}
     sessions = [
-        _build_session(group, max_gap_minutes, counters)
+        _build_session(
+            group,
+            max_gap_minutes,
+            counters,
+            zone,
+            timezone_name,
+        )
         for group in groups
     ]
     missing_start_count = sum(
         item.activity.start_time is None for item in ordered
     )
     warning_count = sum(len(item.warnings) for item in ordered)
+    cadence_count = sum(
+        point.run_cadence_spm is not None
+        for item in ordered
+        for point in item.trackpoints
+    )
+    power_count = sum(
+        point.power_watts is not None
+        for item in ordered
+        for point in item.trackpoints
+    )
     policies = sorted({item.privacy.gps_policy for item in ordered})
 
     quality_notes: list[str] = []
@@ -55,6 +74,7 @@ def build_session_bundle(
             "no_workout_role_inference": True,
             "no_coaching_advice": True,
             "no_medical_interpretation": True,
+            "manual_context_fields_are_placeholders": True,
             "allowed_sources": [
                 "tcx_raw_fields",
                 "fixed_formula_computation",
@@ -66,6 +86,8 @@ def build_session_bundle(
             "activity_count": len(ordered),
             "activities_missing_start_time_count": missing_start_count,
             "source_warning_count": warning_count,
+            "trackpoints_with_run_cadence_count": cadence_count,
+            "trackpoints_with_power_count": power_count,
             "notes": quality_notes,
         },
         "privacy": {
@@ -92,6 +114,10 @@ def render_session_bundle_markdown(bundle: dict) -> str:
         "- Activity role is not inferred.",
         f"- Workout role inference disabled: "
         f"{policy['no_workout_role_inference']}",
+        "- Manual context fields are placeholders only and were not "
+        "inferred from TCX.",
+        "- Cadence values are raw Garmin RunCadence values; no cadence "
+        "x2 conversion is applied.",
         "",
         "## Export Scope",
         "",
@@ -119,8 +145,15 @@ def render_session_bundle_markdown(bundle: dict) -> str:
                     f"- Source file: {activity['source_file']}",
                     f"- Sport: {_md(item['sport'])}",
                     f"- Start time: {_md(item['start_time'])}",
+                    f"- Local start time: {_md(item['start_time_local'])}",
+                    f"- Local date: {_md(item['local_date'])}",
+                    f"- Timezone: {_md(item['timezone'])}",
                     f"- Duration: {_unit(item['duration_minutes'], 'min')}",
                     f"- Distance: {_unit(item['distance_km'], 'km')}",
+                    "- Average run cadence raw: "
+                    f"{_md(activity['key_metrics']['cadence']['avg_run_cadence_raw'])}",
+                    "- Average watts: "
+                    f"{_md(activity['key_metrics']['power']['avg_watts'])}",
                     "- Role: unavailable (not inferred)",
                     "",
                 ]
@@ -143,6 +176,10 @@ def render_session_bundle_markdown(bundle: dict) -> str:
             f"- Source warnings: {quality['source_warning_count']}",
             "- Activities missing start time: "
             f"{quality['activities_missing_start_time_count']}",
+            "- Trackpoints with run cadence: "
+            f"{quality['trackpoints_with_run_cadence_count']}",
+            "- Trackpoints with power: "
+            f"{quality['trackpoints_with_power_count']}",
         ]
     )
     lines.extend(f"- {note}" for note in quality["notes"])
@@ -161,9 +198,11 @@ def render_session_bundle_markdown(bundle: dict) -> str:
 
 
 def _group_activities(
-    activities: list[ParsedActivity], max_gap_minutes: int
+    activities: list[ParsedActivity],
+    max_gap_minutes: int,
+    zone: tzinfo,
 ) -> list[list[ParsedActivity]]:
-    """Group adjacent activities using only date, sport, and start gap."""
+    """Group adjacent activities using local date, sport, and start gap."""
     groups: list[list[ParsedActivity]] = []
     max_gap = timedelta(minutes=max_gap_minutes)
     for item in activities:
@@ -173,16 +212,16 @@ def _group_activities(
             continue
         previous = groups[-1][-1]
         previous_start = previous.activity.start_time
-        same_recorded_start_date = (
+        same_local_date = (
             previous_start is not None
-            and previous_start.date() == start.date()
+            and _local_date(previous_start, zone) == _local_date(start, zone)
         )
         same_sport = previous.activity.sport == item.activity.sport
         within_gap = (
             previous_start is not None
             and _aware(start) - _aware(previous_start) <= max_gap
         )
-        if same_recorded_start_date and same_sport and within_gap:
+        if same_local_date and same_sport and within_gap:
             groups[-1].append(item)
         else:
             groups.append([item])
@@ -193,11 +232,13 @@ def _build_session(
     activities: list[ParsedActivity],
     max_gap_minutes: int,
     counters: dict[tuple[str, str], int],
+    zone: tzinfo,
+    timezone_name: str,
 ) -> dict:
     """Build one session-candidate payload."""
     first = activities[0]
     start = first.activity.start_time
-    date_text = start.date().isoformat() if start else "unknown_date"
+    date_text = _local_date(start, zone) or "unknown_date"
     sport = first.activity.sport or "Unknown"
     counter_key = (date_text, sport)
     counters[counter_key] = counters.get(counter_key, 0) + 1
@@ -206,7 +247,7 @@ def _build_session(
     )
     entries = []
     for order, item in enumerate(activities, start=1):
-        entry = build_ai_summary(item)
+        entry = build_ai_summary(item, timezone_name)
         entry.update(
             {
                 "activity_order": order,
@@ -232,6 +273,11 @@ def _build_session(
     ):
         notes.append("At least one activity has missing duration data.")
 
+    session_start = _minimum_start(activities)
+    session_end = _maximum_end(activities)
+    all_trackpoints = [
+        point for item in activities for point in item.trackpoints
+    ]
     return {
         "session_id": session_id,
         "grouping_source": (
@@ -241,14 +287,19 @@ def _build_session(
         ),
         "grouping_confidence": "candidate",
         "grouping_rule": {
-            "same_recorded_start_date": True,
+            "same_local_date": True,
+            "timezone": timezone_name,
             "same_sport": True,
             "max_gap_minutes": max_gap_minutes,
         },
         "role_inference": "disabled",
         "activity_count": len(activities),
-        "start_time": _iso(_minimum_start(activities)),
-        "end_time": _iso(_maximum_end(activities)),
+        "start_time": _iso(session_start),
+        "end_time": _iso(session_end),
+        "start_time_local": _local_iso(session_start, zone),
+        "end_time_local": _local_iso(session_end, zone),
+        "timezone": timezone_name,
+        "local_date": _local_date(session_start, zone),
         "total_distance_km": _sum_km(
             item.activity.distance_meters for item in activities
         ),
@@ -257,9 +308,20 @@ def _build_session(
         ),
         "weighted_average_heart_rate_bpm": _weighted_hr(activities),
         "maximum_heart_rate_bpm": _maximum_hr(activities),
+        "cadence": _cadence_metrics(all_trackpoints),
+        "power": _power_metrics(all_trackpoints),
+        "manual_context": _manual_context(),
         "activities": entries,
         "data_quality": {
             "activities_missing_start_time_count": missing_start,
+            "trackpoints_with_run_cadence_count": sum(
+                point.run_cadence_spm is not None
+                for point in all_trackpoints
+            ),
+            "trackpoints_with_power_count": sum(
+                point.power_watts is not None
+                for point in all_trackpoints
+            ),
             "notes": notes,
         },
     }
@@ -340,6 +402,103 @@ def _maximum_hr(activities: list[ParsedActivity]) -> int | None:
     return max(values) if values else None
 
 
+def _cadence_metrics(trackpoints: list[Trackpoint]) -> dict:
+    """Aggregate raw run-cadence samples across a session candidate."""
+    values = [
+        point.run_cadence_spm
+        for point in trackpoints
+        if point.run_cadence_spm is not None
+    ]
+    return {
+        "avg_run_cadence_raw": _average(values),
+        "max_run_cadence_raw": max(values) if values else None,
+        "trackpoints_with_run_cadence_count": len(values),
+        "source": "activity_trackpoint_aggregate",
+        "avg_cadence_spm": None,
+        "conversion_rule": None,
+    }
+
+
+def _power_metrics(trackpoints: list[Trackpoint]) -> dict:
+    """Aggregate raw power samples across a session candidate."""
+    values = [
+        point.power_watts
+        for point in trackpoints
+        if point.power_watts is not None
+    ]
+    return {
+        "avg_watts": _average(values),
+        "max_watts": max(values) if values else None,
+        "trackpoints_with_power_count": len(values),
+        "source": "activity_trackpoint_aggregate",
+    }
+
+
+def _average(values: list[int]) -> float | None:
+    """Return a one-decimal arithmetic mean for integer samples."""
+    if not values:
+        return None
+    return round(sum(values) / len(values), 1)
+
+
+def _manual_context() -> dict:
+    """Return empty manual-only context placeholders."""
+    return {
+        "planned_workout_text": None,
+        "planned_workout_source": "manual_only",
+        "completion": None,
+        "rpe_1_to_10": None,
+        "pain_before": None,
+        "pain_during": None,
+        "pain_after": None,
+        "next_day_status": None,
+    }
+
+
+def _timezone(timezone_name: str) -> tzinfo:
+    """Return a ZoneInfo instance or raise ValueError for an invalid name."""
+    try:
+        return ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        fallback = _timezone_fallback(timezone_name)
+        if fallback is not None:
+            return fallback
+        raise ValueError(
+            f"Invalid timezone_name: {timezone_name!r}"
+        ) from exc
+
+
+def _timezone_fallback(timezone_name: str) -> tzinfo | None:
+    """Return stdlib fixed-offset fallbacks for known stable zones."""
+    if timezone_name == "Asia/Taipei":
+        return timezone(timedelta(hours=8), timezone_name)
+    if timezone_name == "UTC":
+        return timezone.utc
+    return None
+
+
+def _local_date(value: datetime | None, zone: tzinfo) -> str | None:
+    """Return the deterministic local date for a recorded timestamp."""
+    local = _local_datetime(value, zone)
+    return local.date().isoformat() if local else None
+
+
+def _local_iso(value: datetime | None, zone: tzinfo) -> str | None:
+    """Return an ISO timestamp converted to the configured timezone."""
+    local = _local_datetime(value, zone)
+    return local.isoformat() if local else None
+
+
+def _local_datetime(
+    value: datetime | None,
+    zone: tzinfo,
+) -> datetime | None:
+    """Convert a recorded timestamp to the configured timezone."""
+    if value is None:
+        return None
+    return _aware(value).astimezone(zone)
+
+
 def _iso(value: datetime | None) -> str | None:
     """Serialize a datetime as UTC ISO 8601 with a Z suffix."""
     if value is None:
@@ -373,6 +532,8 @@ def _session_markdown(session: dict) -> list[str]:
         f"- Activities: {session['activity_count']}",
         f"- Start time: {_md(session['start_time'])}",
         f"- End time: {_md(session['end_time'])}",
+        f"- Local date: {_md(session['local_date'])}",
+        f"- Timezone: {_md(session['timezone'])}",
         f"- Total distance: {_unit(session['total_distance_km'], 'km')}",
         "- Total duration: "
         f"{_unit(session['total_duration_minutes'], 'min')}",
@@ -380,6 +541,10 @@ def _session_markdown(session: dict) -> list[str]:
         f"{_unit(session['weighted_average_heart_rate_bpm'], 'bpm')}",
         "- Maximum heart rate: "
         f"{_unit(session['maximum_heart_rate_bpm'], 'bpm')}",
+        "- Average run cadence raw: "
+        f"{_md(session['cadence']['avg_run_cadence_raw'])}",
+        f"- Average watts: {_md(session['power']['avg_watts'])}",
+        "- Manual context fields: placeholders only; not inferred.",
         "",
     ]
 
@@ -394,8 +559,10 @@ def _laps_markdown(activity: dict) -> list[str]:
         return [*lines, "No lap data is available.", ""]
     lines.extend(
         [
-            "| Lap | Duration (min) | Distance (km) | Pace | Role |",
-            "|---|---|---|---|---|",
+            "| Lap | Duration (min) | Distance (km) | Pace "
+            "| Pace reliability | Reliability reason | Avg cadence raw "
+            "| Avg watts | Role |",
+            "|---|---|---|---|---|---|---|---|---|",
         ]
     )
     for lap in activity["lap_summary"]:
@@ -404,6 +571,10 @@ def _laps_markdown(activity: dict) -> list[str]:
             f"| {_md(lap['duration_minutes'])} "
             f"| {_md(lap['distance_km'])} "
             f"| {_md(lap['average_pace_formatted'])} "
+            f"| {_md(lap['pace_reliability'])} "
+            f"| {_md(lap['reliability_reason'])} "
+            f"| {_md(lap['cadence']['avg_run_cadence_raw'])} "
+            f"| {_md(lap['power']['avg_watts'])} "
             "| unavailable (not inferred) |"
         )
     lines.append("")
@@ -413,10 +584,11 @@ def _laps_markdown(activity: dict) -> list[str]:
 def _split_markdown(activity: dict) -> list[str]:
     """Render neutral split metrics for one activity."""
     split = activity["computed_split_metrics"]
-    return [
+    lines = [
         f"### {activity['source_file']} / Split Metrics",
         "",
         f"- Method: {split['method']}",
+        f"- Interpretation level: {split['interpretation_level']}",
         "- First half average pace: "
         f"{_unit(split['first_half_average_pace_seconds_per_km'], 's/km')}",
         "- Second half average pace: "
@@ -425,8 +597,10 @@ def _split_markdown(activity: dict) -> list[str]:
         f"{_unit(split['pace_second_half_delta_seconds_per_km'], 's/km')}",
         "- Heart-rate second-half delta: "
         f"{_unit(split['heart_rate_second_half_delta_bpm'], 'bpm')}",
-        "",
     ]
+    lines.extend(f"- Note: {note}" for note in split["notes"])
+    lines.append("")
+    return lines
 
 
 def _md(value: object) -> str:

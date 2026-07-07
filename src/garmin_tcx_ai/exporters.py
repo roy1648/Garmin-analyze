@@ -201,6 +201,7 @@ def write_session_bundle_json(
     activities: list[ParsedActivity],
     output_dir: Path,
     max_gap_minutes: int = 30,
+    timezone_name: str = "Asia/Taipei",
 ) -> Path:
     """Write session_bundle.json for multiple normalized activities."""
     folder = Path(output_dir) / "session_bundle"
@@ -208,7 +209,11 @@ def write_session_bundle_json(
     target = folder / "session_bundle.json"
     with target.open("w", encoding="utf-8", newline="\n") as fh:
         json.dump(
-            build_session_bundle(activities, max_gap_minutes),
+            build_session_bundle(
+                activities,
+                max_gap_minutes,
+                timezone_name,
+            ),
             fh,
             ensure_ascii=False,
             indent=2,
@@ -222,12 +227,17 @@ def write_session_bundle_markdown(
     activities: list[ParsedActivity],
     output_dir: Path,
     max_gap_minutes: int = 30,
+    timezone_name: str = "Asia/Taipei",
 ) -> Path:
     """Write session_bundle.md for multiple normalized activities."""
     folder = Path(output_dir) / "session_bundle"
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / "session_bundle.md"
-    bundle = build_session_bundle(activities, max_gap_minutes)
+    bundle = build_session_bundle(
+        activities,
+        max_gap_minutes,
+        timezone_name,
+    )
     target.write_text(
         render_session_bundle_markdown(bundle),
         encoding="utf-8",
