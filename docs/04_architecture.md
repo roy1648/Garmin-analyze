@@ -166,6 +166,12 @@ PR #17 將 UI interaction refinement 限定在 presentation / validation helpers
 - 真正資料處理仍由 `pipeline.run_bundle()` 執行。
 - UI helper 不得取代 pipeline validation，只能提供執行前使用者提示。
 
+PR #18 adds output actions:
+- UI may provide browser-side copy-to-clipboard controls for generated local output text.
+- UI may ask the local OS to open the output folder.
+- These actions are presentation/output convenience only.
+- They do not modify `pipeline.run_bundle()`, output schema, parser, normalizer, exporter, or session contract.
+
 
 
 ## 3. Session Bundle API

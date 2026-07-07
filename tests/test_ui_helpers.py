@@ -5,10 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from garmin_tcx_ai.ui_helpers import (
+    can_open_folder,
     default_output_dir,
+    folder_open_command,
     inspect_input_path,
     normalize_output_path,
+    open_folder,
     output_file_status,
+    read_output_text,
     read_text_if_exists,
 )
 
@@ -156,3 +160,56 @@ def test_normalize_output_path_custom() -> None:
     """Test normalize_output_path returns custom path correctly."""
     res = normalize_output_path("  custom/output/dir  ")
     assert res == Path("custom/output/dir")
+
+
+def test_read_output_text_returns_empty_for_missing_and_none() -> None:
+    """Test read_output_text returns empty string for missing and None paths."""
+    assert read_output_text(None) == ""
+    assert read_output_text(Path("nonexistent_path_xyz.json")) == ""
+
+
+def test_read_output_text_reads_existing_file(tmp_path: Path) -> None:
+    """Test read_output_text reads content of an existing file."""
+    temp_file = tmp_path / "test.json"
+    content = '{"key": "value"}'
+    temp_file.write_text(content, encoding="utf-8")
+    assert read_output_text(temp_file) == content
+
+
+def test_can_open_folder_validation(tmp_path: Path) -> None:
+    """Test can_open_folder returns correct boolean based on paths."""
+    assert not can_open_folder(None)
+    assert not can_open_folder(Path("nonexistent_dir_abc"))
+
+    # Test file path
+    temp_file = tmp_path / "test.txt"
+    temp_file.write_text("content", encoding="utf-8")
+    assert not can_open_folder(temp_file)
+
+    # Test directory path
+    assert can_open_folder(tmp_path)
+
+
+def test_folder_open_command_logic() -> None:
+    """Test folder_open_command returns expected command list based on OS."""
+    path = Path("abc")
+    assert folder_open_command(path, "darwin") == ["open", "abc"]
+    assert folder_open_command(path, "linux") == ["xdg-open", "abc"]
+    assert folder_open_command(path, "linux2") == ["xdg-open", "abc"]
+    assert folder_open_command(path, "win32") is None
+    assert folder_open_command(path, "unknown") is None
+
+
+def test_open_folder_nonexistent_or_not_dir(tmp_path: Path) -> None:
+    """Test open_folder returns failure result for invalid paths."""
+    # Nonexistent path
+    res1 = open_folder(Path("nonexistent_dir_abc"))
+    assert not res1.success
+    assert "路徑不存在或不是資料夾" in res1.message
+
+    # File path
+    temp_file = tmp_path / "test.txt"
+    temp_file.write_text("content", encoding="utf-8")
+    res2 = open_folder(temp_file)
+    assert not res2.success
+    assert "路徑不存在或不是資料夾" in res2.message

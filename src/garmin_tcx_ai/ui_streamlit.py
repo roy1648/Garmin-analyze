@@ -2,18 +2,87 @@
 
 from __future__ import annotations
 
+import html
+import json
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from garmin_tcx_ai.pipeline import BundleRunConfig, run_bundle
 from garmin_tcx_ai.ui_helpers import (
     default_output_dir,
     inspect_input_path,
     normalize_output_path,
+    open_folder,
     output_file_status,
-    read_text_if_exists,
+    read_output_text,
 )
+
+
+def render_copy_button(label: str, text: str, key: str) -> None:
+    """Render a browser-side copy-to-clipboard button.
+
+    Args:
+        label: The label for the button.
+        text: The text to be copied to the clipboard.
+        key: A unique key identifier for HTML elements.
+    """
+    if not text:
+        st.caption("無可複製內容。")
+        return
+
+    safe_label = html.escape(label)
+    text_json = json.dumps(text)
+    key_safe = html.escape(key)
+
+    components.html(
+        f"""
+        <button id="copy-{key_safe}" style="
+            background: linear-gradient(135deg, #4f46e5, #0891b2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        "> {safe_label} </button>
+        <span id="copy-status-{key_safe}" style="
+            margin-left: 8px;
+            font-size: 13px;
+            color: #10b981;
+            font-family: system-ui, sans-serif;
+            font-weight: 500;
+        "></span>
+        <script>
+        const btn = document.getElementById("copy-{key_safe}");
+        const status = document.getElementById("copy-status-{key_safe}");
+        btn.onclick = async () => {{
+            try {{
+                await navigator.clipboard.writeText({text_json});
+                status.textContent = "已複製";
+                setTimeout(() => {{
+                    status.textContent = "";
+                }}, 2000);
+            }} catch (err) {{
+                status.textContent = "複製失敗，請手動選取文字。";
+            }}
+        }};
+        btn.onmouseover = () => {{
+            btn.style.opacity = "0.9";
+            btn.style.transform = "translateY(-0.5px)";
+        }};
+        btn.onmouseout = () => {{
+            btn.style.opacity = "1";
+            btn.style.transform = "none";
+        }};
+        </script>
+        """,
+        height=45,
+    )
 
 
 def main() -> None:
@@ -188,7 +257,7 @@ def main() -> None:
                 st.session_state.run_result = result
 
     with col2:
-        st.subheader("轉換結果與預覽")
+        st.subheader("轉換結果")
 
         if "run_result" in st.session_state:
             res = st.session_state.run_result
@@ -211,7 +280,14 @@ def main() -> None:
                 st.markdown("### 輸出路徑")
                 st.code(str(res.output_dir.resolve()), language="text")
 
-                st.markdown("### 輸出狀態與下載")
+                if st.button("打開輸出資料夾"):
+                    open_res = open_folder(res.output_dir)
+                    if open_res.success:
+                        st.success(open_res.message)
+                    else:
+                        st.error(open_res.message)
+
+                st.markdown("### 輸出狀態")
                 st.markdown(
                     "- **session_bundle.json**: "
                     f"{output_file_status(res.session_bundle_json_path)}"
@@ -225,46 +301,40 @@ def main() -> None:
                     f"{output_file_status(res.coach_handoff_markdown_path)}"
                 )
 
-                # Download buttons if files exist
-                sb_content = read_text_if_exists(
-                    res.session_bundle_markdown_path
-                )
-                ch_content = read_text_if_exists(
-                    res.coach_handoff_markdown_path
-                )
+                st.markdown("### 複製輸出內容")
 
-                dl_col1, dl_col2 = st.columns(2)
-                with dl_col1:
-                    if sb_content:
-                        st.download_button(
-                            label="下載 session_bundle.md",
-                            data=sb_content,
-                            file_name="session_bundle.md",
-                            mime="text/markdown",
-                        )
-                with dl_col2:
-                    if ch_content:
-                        st.download_button(
-                            label="下載 coach_handoff.md",
-                            data=ch_content,
-                            file_name="coach_handoff.md",
-                            mime="text/markdown",
-                        )
+                # Check and read session_bundle.json
+                sb_json_text = read_output_text(res.session_bundle_json_path)
+                if sb_json_text:
+                    render_copy_button(
+                        "複製 session_bundle.json",
+                        sb_json_text,
+                        "session_bundle_json",
+                    )
+                else:
+                    st.write("session_bundle.json: 未產生，無法複製。")
 
-                st.markdown("---")
+                # Check and read session_bundle.md
+                sb_md_text = read_output_text(res.session_bundle_markdown_path)
+                if sb_md_text:
+                    render_copy_button(
+                        "複製 session_bundle.md",
+                        sb_md_text,
+                        "session_bundle_markdown",
+                    )
+                else:
+                    st.write("session_bundle.md: 未產生，無法複製。")
 
-                # Markdown preview expanders
-                with st.expander("預覽 session_bundle.md", expanded=True):
-                    if sb_content:
-                        st.markdown(sb_content)
-                    else:
-                        st.write("未產生")
-
-                with st.expander("預覽 coach_handoff.md", expanded=True):
-                    if ch_content:
-                        st.markdown(ch_content)
-                    else:
-                        st.write("未產生")
+                # Check and read coach_handoff.md
+                ch_md_text = read_output_text(res.coach_handoff_markdown_path)
+                if ch_md_text:
+                    render_copy_button(
+                        "複製 coach_handoff.md",
+                        ch_md_text,
+                        "coach_handoff_markdown",
+                    )
+                else:
+                    st.write("coach_handoff.md: 未產生，無法複製。")
             else:
                 st.error("❌ 轉換失敗！")
                 st.error(
@@ -280,6 +350,36 @@ def main() -> None:
                         st.write(f"- {warning}")
         else:
             st.info("尚未執行轉換。請設定左側參數，並點擊「開始轉換」按鈕。")
+
+    # Render preview section at the bottom, using full width and unrestricted height
+    if "run_result" in st.session_state:
+        res = st.session_state.run_result
+        if res.success:
+            st.markdown("---")
+            st.markdown("### 輸出檔案預覽")
+
+            sb_json_text = read_output_text(res.session_bundle_json_path)
+            sb_md_text = read_output_text(res.session_bundle_markdown_path)
+            ch_md_text = read_output_text(res.coach_handoff_markdown_path)
+
+            tab1, tab2, tab3 = st.tabs(
+                ["session_bundle.json", "session_bundle.md", "coach_handoff.md"]
+            )
+            with tab1:
+                if sb_json_text:
+                    st.code(sb_json_text, language="json")
+                else:
+                    st.write("未產生")
+            with tab2:
+                if sb_md_text:
+                    st.markdown(sb_md_text)
+                else:
+                    st.write("未產生")
+            with tab3:
+                if ch_md_text:
+                    st.markdown(ch_md_text)
+                else:
+                    st.write("未產生")
 
 
 if __name__ == "__main__":
