@@ -370,6 +370,9 @@ def main() -> None:
                 with st.spinner("執行轉換中..."):
                     result = run_bundle(config)
                 st.session_state.run_result = result
+                st.session_state.run_counter = (
+                    st.session_state.get("run_counter", 0) + 1
+                )
 
     with col2:
         st.subheader("轉換結果")
@@ -409,20 +412,21 @@ def main() -> None:
                     f"{output_file_status(res.coach_handoff_markdown_path)}"
                 )
                 st.markdown("### 複製輸出內容")
+                run_key = st.session_state.get("run_counter", 0)
                 render_copy_button_or_text_area(
                     "複製 session_bundle.json",
                     read_output_text(res.session_bundle_json_path),
-                    "session_bundle_json",
+                    f"session_bundle_json_{run_key}",
                 )
                 render_copy_button_or_text_area(
                     "複製 session_bundle.md",
                     read_output_text(res.session_bundle_markdown_path),
-                    "session_bundle_markdown",
+                    f"session_bundle_markdown_{run_key}",
                 )
                 render_copy_button_or_text_area(
                     "複製 coach_handoff.md",
                     read_output_text(res.coach_handoff_markdown_path),
-                    "coach_handoff_markdown",
+                    f"coach_handoff_markdown_{run_key}",
                 )
             else:
                 st.error("❌ 轉換失敗！")
