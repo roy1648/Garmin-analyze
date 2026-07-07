@@ -381,25 +381,43 @@ def test_markdown_has_fixed_sections_and_no_sensitive_content() -> None:
     )
     lines = markdown.splitlines()
     assert lines[0] == "# TCX Multi-Activity Report"
+    assert lines[1] == "# TCX 多活動報告"
     assert (
-        "does not merge them into one recorded workout"
+        "這並不代表將它們合併為單次記錄的運動"
         in markdown
     )
     assert (
-        "Session candidates are candidate activity groups for review"
+        "Session 候選分組為供審閱的候選活動分組"
         in markdown
     )
     for heading in (
         "## Data Policy",
+        "## 資料政策",
         "## Export Scope",
+        "## 輸出範圍",
         "## Session Candidates",
+        "## Session 候選分組",
         "## Activities",
+        "## 活動紀錄",
         "## Lap Summaries",
+        "## Lap 摘要",
         "## Computed Split Metrics",
+        "## 固定公式分段指標",
         "## Data Quality",
+        "## 資料品質",
         "## Privacy",
+        "## 隱私保護",
     ):
         assert heading in markdown
+    
+    # Verify new polished wording and absence of old wording
+    assert "課表／活動角色推論已停用" in markdown
+    assert "角色：未標記（未推論）" in markdown
+    assert "Session 候選分組" in markdown
+    assert "運動角色推論" not in markdown
+    assert "角色：無資料（未推論）" not in markdown
+    assert "Session Candidate 候選分組" not in markdown
+
     lowered = markdown.lower()
     assert "Suggested AI Analysis Questions" not in markdown
     assert "latitude" not in lowered

@@ -106,70 +106,70 @@ def render_session_bundle_markdown(bundle: dict) -> str:
     privacy = bundle["privacy"]
     lines = [
         "# TCX Multi-Activity Report",
+        "# TCX 多活動報告",
         "",
-        "This report packages one or more TCX activities for AI-readable "
-        "review. It does not merge them into one recorded workout.",
+        "本報告封裝一或多個 TCX 活動以供 AI 讀取審閱。這並不代表將它們合併為單次記錄的運動。",
         "",
         "## Data Policy",
+        "## 資料政策",
         "",
-        "- Session grouping is a candidate, not a recorded fact.",
-        "- Session candidates are candidate activity groups for review; "
-        "they do not merge activities into one recorded workout.",
-        "- Role inference is disabled.",
-        "- Activity role is not inferred.",
-        f"- Workout role inference disabled: "
+        "- Session 分組僅為候選分組，而非記錄事實。",
+        "- Session 候選分組為供審閱的候選活動分組；它們不會將活動合併為單次記錄的運動。",
+        "- 角色推論已停用。",
+        "- 活動角色未推論。",
+        f"- 課表／活動角色推論已停用："
         f"{policy['no_workout_role_inference']}",
-        "- Manual context fields are placeholders only and were not "
-        "inferred from TCX.",
-        "- Cadence values are raw Garmin RunCadence values; no cadence "
-        "x2 conversion is applied.",
+        "- 手動補充資訊欄位僅為預留位置，未從 TCX 推論。",
+        "- 步頻值為原始 Garmin RunCadence 值；未套用步頻 2 倍換算。",
         "",
         "## Export Scope",
+        "## 輸出範圍",
         "",
-        f"- Activities: {scope['activity_count']}",
-        f"- Session candidates: {scope['session_candidate_count']}",
+        f"- 活動紀錄：{scope['activity_count']}",
+        f"- Session 候選分組：{scope['session_candidate_count']}",
         "",
         "## Session Candidates",
+        "## Session 候選分組",
         "",
     ]
 
     if not bundle["sessions"]:
-        lines.extend(["No session candidates are available.", ""])
+        lines.extend(["無 Session 候選分組。", ""])
     for session in bundle["sessions"]:
         lines.extend(_session_markdown(session))
 
-    lines.extend(["## Activities", ""])
+    lines.extend(["## Activities", "## 活動紀錄", ""])
     for session in bundle["sessions"]:
         for activity in session["activities"]:
             item = activity["activity_summary"]
             lines.extend(
                 [
-                    f"### {session['session_id']} / Activity "
+                    f"### {session['session_id']} / 活動 "
                     f"{activity['activity_order']}",
                     "",
-                    f"- Source file: {activity['source_file']}",
-                    f"- Sport: {_md(item['sport'])}",
-                    f"- Start time: {_md(item['start_time'])}",
-                    f"- Local start time: {_md(item['start_time_local'])}",
-                    f"- Local date: {_md(item['local_date'])}",
-                    f"- Timezone: {_md(item['timezone'])}",
-                    f"- Duration: {_unit(item['duration_minutes'], 'min')}",
-                    f"- Distance: {_unit(item['distance_km'], 'km')}",
-                    "- Average run cadence raw: "
+                    f"- 來源檔案：{activity['source_file']}",
+                    f"- 運動：{_md(item['sport'])}",
+                    f"- 開始時間：{_md(item['start_time'])}",
+                    f"- 本地開始時間：{_md(item['start_time_local'])}",
+                    f"- 本地日期：{_md(item['local_date'])}",
+                    f"- 時區：{_md(item['timezone'])}",
+                    f"- 時間：{_unit(item['duration_minutes'], 'min')}",
+                    f"- 距離：{_unit(item['distance_km'], 'km')}",
+                    "- 平均原始跑步步頻："
                     f"{_md(activity['key_metrics']['cadence']['avg_run_cadence_raw'])}",
-                    "- Average watts: "
+                    "- 平均功率："
                     f"{_md(activity['key_metrics']['power']['avg_watts'])}",
-                    "- Role: unavailable (not inferred)",
+                    "- 角色：未標記（未推論）",
                     "",
                 ]
             )
 
-    lines.extend(["## Lap Summaries", ""])
+    lines.extend(["## Lap Summaries", "## Lap 摘要", ""])
     for session in bundle["sessions"]:
         for activity in session["activities"]:
             lines.extend(_laps_markdown(activity))
 
-    lines.extend(["## Computed Split Metrics", ""])
+    lines.extend(["## Computed Split Metrics", "## 固定公式分段指標", ""])
     for session in bundle["sessions"]:
         for activity in session["activities"]:
             lines.extend(_split_markdown(activity))
@@ -177,25 +177,27 @@ def render_session_bundle_markdown(bundle: dict) -> str:
     lines.extend(
         [
             "## Data Quality",
+            "## 資料品質",
             "",
-            f"- Source warnings: {quality['source_warning_count']}",
-            "- Activities missing start time: "
+            f"- 來源警告：{quality['source_warning_count']}",
+            "- 活動缺少開始時間："
             f"{quality['activities_missing_start_time_count']}",
-            "- Trackpoints with run cadence: "
+            "- Trackpoint 具備跑步步頻："
             f"{quality['trackpoints_with_run_cadence_count']}",
-            "- Trackpoints with power: "
+            "- Trackpoint 具備功率："
             f"{quality['trackpoints_with_power_count']}",
         ]
     )
-    lines.extend(f"- {note}" for note in quality["notes"])
+    lines.extend(f"- {_translate_note(note)}" for note in quality["notes"])
     lines.extend(
         [
             "",
             "## Privacy",
+            "## 隱私保護",
             "",
-            f"- GPS policies: {', '.join(privacy['gps_policies']) or 'none'}",
-            "- GPS coordinates are not included.",
-            "- Route details are not included.",
+            f"- GPS 政策：{', '.join(_translate_value(p) for p in privacy['gps_policies']) or '無'}",
+            "- 不包含 GPS 座標。",
+            "- 不包含路線細節。",
             "",
         ]
     )
@@ -513,6 +515,73 @@ def _iso(value: datetime | None) -> str | None:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _translate_value(val: object) -> str:
+    """Translate value strings to Traditional Chinese (Taiwan) for Markdown rendering."""
+    if val is None:
+        return "無資料"
+    val_str = str(val)
+    translations = {
+        "unavailable": "無資料",
+        "unavailable (not inferred)": "未標記（未推論）",
+        "placeholders only; not inferred": "僅為手動填寫欄位，未從 TCX 推論",
+        "Running": "跑步",
+        "running": "跑步",
+        "Other": "其他",
+        "other": "其他",
+        "candidate": "候選",
+        "time_gap_rule": "時間間隔規則",
+        "missing_start_time_singleton": "缺少開始時間單一活動",
+        "disabled": "已停用",
+        "not_inferred": "未推論",
+        "invalid": "無效",
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+        "missing_distance_or_duration": "缺少距離或時間資料",
+        "non_positive_distance_or_duration": "距離或時間資料非正數",
+        "lap_distance_below_0.1km": "Lap 距離低於 0.1km",
+        "lap_distance_between_0.1km_and_0.3km": "Lap 距離介於 0.1km 至 0.3km",
+        "lap_distance_at_least_0.3km": "Lap 距離至少 0.3km",
+        "split_at_cumulative_distance_midpoint": "固定累計距離中點分段",
+        "computed_metrics_only_no_training_interpretation": "僅計算指標不進行訓練解讀",
+        "limited_for_interval_or_mixed_lap_activity": "間歇或混合 Lap 活動受限",
+        "redact_start_end": "遮蔽起點與終點",
+        "redact_all": "完全遮蔽",
+        "keep": "保留",
+        "none": "無",
+    }
+    return translations.get(val_str, val_str)
+
+
+def _translate_note(note: str) -> str:
+    """Translate data quality or split notes to Traditional Chinese (Taiwan) for Markdown."""
+    translations = {
+        "This split metric is a fixed-formula summary and must not be interpreted as fatigue, workout quality, or workout type.":
+            "本分段指標僅為固定公式摘要，不得解讀為疲勞度、訓練品質或訓練類型。",
+        "Distance data is missing or insufficient for the fixed cumulative-distance midpoint split.":
+            "距離資料缺失或不足，無法計算固定累計距離中點分段。",
+        "Timestamp or distance data is missing or insufficient for half-split pace.":
+            "時間戳記或距離資料缺失或不足，無法計算後半段平均配速。",
+        "Heart rate data is missing or insufficient in at least one half.":
+            "至少有一半的區段心率資料缺失或不足。",
+        "No trackpoints are available.":
+            "無 trackpoint 軌跡點資料。",
+        "Fewer than two altitude readings; elevation gain cannot be estimated.":
+            "高度讀數少於兩個，無法估算爬升高度。",
+        "Some key fields are missing; see missing_key_fields.":
+            "部分關鍵欄位缺失，請參閱 missing_key_fields。",
+        "Activities with missing start_time are separate session candidates.":
+            "缺少 start_time 的活動將作為獨立的 Session 候選分組。",
+        "Missing start_time prevents grouping with other activities.":
+            "缺少 start_time，無法與其他活動進行分組。",
+        "At least one activity has missing distance data.":
+            "至少有一個活動缺少距離資料。",
+        "At least one activity has missing duration data.":
+            "至少有一個活動缺少時間資料。",
+    }
+    return translations.get(note, note)
+
+
 def _aware(value: datetime) -> datetime:
     """Return a timezone-aware datetime for safe comparisons."""
     if value.tzinfo is None:
@@ -531,25 +600,25 @@ def _session_markdown(session: dict) -> list[str]:
     return [
         f"### {session['session_id']}",
         "",
-        f"- Grouping confidence: {session['grouping_confidence']}",
-        f"- Grouping source: {session['grouping_source']}",
-        f"- Role inference: {session['role_inference']}",
-        f"- Activities: {session['activity_count']}",
-        f"- Start time: {_md(session['start_time'])}",
-        f"- End time: {_md(session['end_time'])}",
-        f"- Local date: {_md(session['local_date'])}",
-        f"- Timezone: {_md(session['timezone'])}",
-        f"- Total distance: {_unit(session['total_distance_km'], 'km')}",
-        "- Total duration: "
+        f"- 分組信心標記：{_translate_value(session['grouping_confidence'])}",
+        f"- 分組來源：{_translate_value(session['grouping_source'])}",
+        f"- 角色推論：{_translate_value(session['role_inference'])}",
+        f"- 活動紀錄：{session['activity_count']}",
+        f"- 開始時間：{_md(session['start_time'])}",
+        f"- 結束時間：{_md(session['end_time'])}",
+        f"- 本地日期：{_md(session['local_date'])}",
+        f"- 時區：{_md(session['timezone'])}",
+        f"- 總距離：{_unit(session['total_distance_km'], 'km')}",
+        "- 總時間: "
         f"{_unit(session['total_duration_minutes'], 'min')}",
-        "- Weighted average heart rate: "
+        "- 加權平均心率: "
         f"{_unit(session['weighted_average_heart_rate_bpm'], 'bpm')}",
-        "- Maximum heart rate: "
+        "- 最高心率: "
         f"{_unit(session['maximum_heart_rate_bpm'], 'bpm')}",
-        "- Average run cadence raw: "
+        "- 平均原始跑步步頻: "
         f"{_md(session['cadence']['avg_run_cadence_raw'])}",
-        f"- Average watts: {_md(session['power']['avg_watts'])}",
-        "- Manual context fields: placeholders only; not inferred.",
+        f"- 平均功率：{_md(session['power']['avg_watts'])}",
+        "- 手動補充資訊欄位：僅為手動填寫欄位，未從 TCX 推論。",
         "",
     ]
 
@@ -561,12 +630,12 @@ def _laps_markdown(activity: dict) -> list[str]:
     )
     lines = [title, ""]
     if not activity["lap_summary"]:
-        return [*lines, "No lap data is available.", ""]
+        return [*lines, "無 Lap 資料。", ""]
     lines.extend(
         [
-            "| Lap | Duration (min) | Distance (km) | Pace "
-            "| Pace reliability | Reliability reason | Avg cadence raw "
-            "| Avg watts | Role |",
+            "| Lap | 時間 (min) | 距離 (km) | 配速 "
+            "| 配速可信度 | 可信度原因 | 平均原始步頻 "
+            "| 平均功率 | 角色 |",
             "|---|---|---|---|---|---|---|---|---|",
         ]
     )
@@ -580,7 +649,7 @@ def _laps_markdown(activity: dict) -> list[str]:
             f"| {_md(lap['reliability_reason'])} "
             f"| {_md(lap['cadence']['avg_run_cadence_raw'])} "
             f"| {_md(lap['power']['avg_watts'])} "
-            "| unavailable (not inferred) |"
+            "| 未標記（未推論） |"
         )
     lines.append("")
     return lines
@@ -590,29 +659,33 @@ def _split_markdown(activity: dict) -> list[str]:
     """Render neutral split metrics for one activity."""
     split = activity["computed_split_metrics"]
     lines = [
-        f"### {activity['source_file']} / Split Metrics",
+        f"### {activity['source_file']} / 固定公式分段指標",
         "",
-        f"- Method: {split['method']}",
-        f"- Interpretation level: {split['interpretation_level']}",
-        "- First half average pace: "
+        f"- 方法：{_md(split['method'])}",
+        f"- 解讀層級：{_md(split['interpretation_level'])}",
+        "- 前半段平均配速："
         f"{_unit(split['first_half_average_pace_seconds_per_km'], 's/km')}",
-        "- Second half average pace: "
+        "- 後半段平均配速："
         f"{_unit(split['second_half_average_pace_seconds_per_km'], 's/km')}",
-        "- Pace second-half delta: "
+        "- 配速後半段差異："
         f"{_unit(split['pace_second_half_delta_seconds_per_km'], 's/km')}",
-        "- Heart-rate second-half delta: "
+        "- 心率後半段差異："
         f"{_unit(split['heart_rate_second_half_delta_bpm'], 'bpm')}",
     ]
-    lines.extend(f"- Note: {note}" for note in split["notes"])
+    lines.extend(f"- 備註：{_translate_note(note)}" for note in split["notes"])
     lines.append("")
     return lines
 
 
 def _md(value: object) -> str:
     """Render missing values consistently for Markdown."""
-    return "unavailable" if value is None else str(value)
+    if value is None:
+        return "無資料"
+    return _translate_value(value)
 
 
 def _unit(value: object, unit: str) -> str:
     """Render a value with a unit or as unavailable."""
-    return "unavailable" if value is None else f"{value} {unit}"
+    if value is None:
+        return "無資料"
+    return f"{value} {unit}"

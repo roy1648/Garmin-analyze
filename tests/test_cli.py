@@ -345,16 +345,18 @@ def test_cli_with_coach_handoff(tmp_path: Path) -> None:
     assert handoff_md.is_file()
 
     content = handoff_md.read_text(encoding="utf-8")
-    assert "# TCX Coach Handoff" in content
-    assert "這是多活動報告，每個 TCX 活動在報告中皆保持獨立紀錄。" in content
-    assert "- Planned Workout:" in content
-    assert "- RPE:" in content
-    assert "- Pain Before / During / After:" in content
-    assert "- Next Day Status:" in content
-    assert "- Notes:" in content
+    assert "# TCX 教練交接報告" in content
+    assert "這是多活動報告，每個 TCX 活動在報告中皆保持獨立紀錄；不代表多個 TCX 被合併成一堂訓練。" in content
+    assert "- 預定課表：" in content
+    assert "- RPE：" in content
+    assert "- 跑前疼痛：" in content
+    assert "- 跑中疼痛：" in content
+    assert "- 跑後疼痛：" in content
+    assert "- 隔日狀態：" in content
+    assert "- 補充說明：" in content
 
     # Should contain core session bundle markdown content
-    assert "# TCX Multi-Activity Report" in content
+    assert "# TCX 多活動報告" in content
 
     # Safe check: no GPS or coaching/medical interpretation
     assert "latitude" not in content.lower()
