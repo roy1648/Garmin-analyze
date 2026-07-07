@@ -71,7 +71,7 @@ def test_render_coach_handoff_markdown() -> None:
 
     # 1. Check title and instruction
     assert "# TCX Coach Handoff" in md
-    assert "這是多活動報告，不代表多個 TCX 被合併成一堂訓練。" in md
+    assert "這是多活動報告，每個 TCX 活動在報告中皆保持獨立紀錄。" in md
 
     # 2. Check manual context empty fields
     assert "- Planned Workout:" in md

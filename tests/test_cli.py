@@ -346,7 +346,7 @@ def test_cli_with_coach_handoff(tmp_path: Path) -> None:
 
     content = handoff_md.read_text(encoding="utf-8")
     assert "# TCX Coach Handoff" in content
-    assert "這是多活動報告，不代表多個 TCX 被合併成一堂訓練。" in content
+    assert "這是多活動報告，每個 TCX 活動在報告中皆保持獨立紀錄。" in content
     assert "- Planned Workout:" in content
     assert "- RPE:" in content
     assert "- Pain Before / During / After:" in content

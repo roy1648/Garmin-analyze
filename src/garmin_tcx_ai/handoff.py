@@ -25,7 +25,7 @@ def render_coach_handoff_markdown(bundle: dict) -> str:
     lines = [
         "# TCX Coach Handoff",
         "",
-        "這是多活動報告，不代表多個 TCX 被合併成一堂訓練。",
+        "這是多活動報告，每個 TCX 活動在報告中皆保持獨立紀錄。",
         "",
         "## Manual Context",
         "",
