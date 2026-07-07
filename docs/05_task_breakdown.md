@@ -184,3 +184,21 @@ scope creep。
   workout.
 - Real-data smoke test 只使用 local ignored path。
 - Smoke output 不 commit。
+
+## Phase 11：Minimal Session Bundle CLI (PR #11)
+
+目標：
+
+- 建立一個最小可用 CLI，可用一條指令把本機 Garmin TCX 檔案轉成 AI 教練可讀的 session bundle。
+
+完成條件：
+
+- 支援 `garmin-tcx-ai` 入口命令與 `bundle` 子命令。
+- 使用 `argparse`，無額外 CLI 套件依賴。
+- 支援單一 TCX 與目錄的輸入偵測（第一層 `.tcx`，非遞迴）。
+- 支援自訂與預設的時區、合併時間差、GPS 隱私政策。
+- 預設僅輸出 `session_bundle` 檔案，支援 `--write-atomic` 參數寫出詳細 per-activity 除錯檔案。
+- 包含完整錯誤捕捉與 exit code 回傳。
+- 完成 CLI pytest 測試覆蓋。
+- 排除 Suggested Questions 與 role inference 等推論內容。
+
