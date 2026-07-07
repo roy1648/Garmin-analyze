@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import importlib
 import os
 from pathlib import Path
 import subprocess
@@ -263,4 +264,121 @@ def open_folder(path: Path) -> FolderOpenResult:
         return FolderOpenResult(
             success=False,
             message=f"開啟資料夾時發生錯誤：{exc}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Native path picker helpers
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class DialogResult:
+    """Result of a native file or folder dialog operation."""
+
+    success: bool
+    path_text: str
+    message: str
+
+
+def _create_hidden_tk_root():  # type: ignore[return]
+    """Create and return a hidden Tk root window for native dialogs.
+
+    This private function is extracted as a seam so that unit tests can
+    monkeypatch it without needing a real display or tkinter installation.
+
+    Returns:
+        A hidden Tk root object, or raises an exception if unavailable.
+    """
+    import tkinter as tk  # lazy import – standard library only
+    root = tk.Tk()
+    root.withdraw()
+    root.wm_attributes("-topmost", 1)
+    return root
+
+
+def select_tcx_file_dialog() -> DialogResult:
+    """Open a native dialog for selecting one .tcx file.
+
+    Uses Python standard library tkinter only (lazy import via importlib).
+    Falls back gracefully when tkinter is unavailable (e.g., headless CI).
+
+    Returns:
+        DialogResult with success flag, selected path, and user message.
+    """
+    try:
+        root = _create_hidden_tk_root()
+        try:
+            # Use importlib + sys.modules so that monkeypatch.setitem on
+            # sys.modules["tkinter.filedialog"] works in headless CI tests.
+            importlib.import_module("tkinter.filedialog")
+            fd = sys.modules["tkinter.filedialog"]
+            file_path: str = fd.askopenfilename(
+                parent=root,
+                title="選擇 TCX 檔案",
+                filetypes=[("TCX files", "*.tcx"), ("All files", "*.*")],
+            )
+        finally:
+            root.destroy()
+
+        if file_path:
+            return DialogResult(
+                success=True,
+                path_text=file_path,
+                message=f"已選擇 TCX 檔案：{file_path}",
+            )
+        return DialogResult(
+            success=False,
+            path_text="",
+            message="未選擇檔案。",
+        )
+    except Exception as exc:
+        return DialogResult(
+            success=False,
+            path_text="",
+            message=f"無法開啟檔案選擇器：{exc}",
+        )
+
+
+def select_directory_dialog(title: str = "選擇資料夾") -> DialogResult:
+    """Open a native dialog for selecting a directory.
+
+    Uses Python standard library tkinter only (lazy import via importlib).
+    Falls back gracefully when tkinter is unavailable (e.g., headless CI).
+
+    Args:
+        title: The title shown in the native dialog window.
+
+    Returns:
+        DialogResult with success flag, selected path, and user message.
+    """
+    try:
+        root = _create_hidden_tk_root()
+        try:
+            # Use importlib + sys.modules so that monkeypatch.setitem on
+            # sys.modules["tkinter.filedialog"] works in headless CI tests.
+            importlib.import_module("tkinter.filedialog")
+            fd = sys.modules["tkinter.filedialog"]
+            folder_path: str = fd.askdirectory(
+                parent=root,
+                title=title,
+            )
+        finally:
+            root.destroy()
+
+        if folder_path:
+            return DialogResult(
+                success=True,
+                path_text=folder_path,
+                message=f"已選擇資料夾：{folder_path}",
+            )
+        return DialogResult(
+            success=False,
+            path_text="",
+            message="未選擇資料夾。",
+        )
+    except Exception as exc:
+        return DialogResult(
+            success=False,
+            path_text="",
+            message=f"無法開啟資料夾選擇器：{exc}",
         )

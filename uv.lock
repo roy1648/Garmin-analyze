@@ -178,7 +178,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "streamlit", specifier = ">=1.36" }]
+requires-dist = [{ name = "streamlit", specifier = ">=1.56" }]
 
 [[package]]
 name = "gitdb"

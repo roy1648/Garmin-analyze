@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from garmin_tcx_ai.pipeline import BundleRunConfig, run_bundle
 from garmin_tcx_ai.ui_helpers import (
@@ -17,29 +16,36 @@ from garmin_tcx_ai.ui_helpers import (
     open_folder,
     output_file_status,
     read_output_text,
+    select_directory_dialog,
+    select_tcx_file_dialog,
 )
 
 
-def render_copy_button(label: str, text: str, key: str) -> None:
-    """Render a browser-side copy-to-clipboard button.
+def render_copy_button_or_text_area(
+    label: str, text: str, key: str
+) -> None:
+    """Render a copy action without deprecated Streamlit component APIs.
+
+    Uses st.iframe (Streamlit >= 1.56) with a raw HTML/JS snippet to
+    provide a browser-side clipboard copy button.  On clipboard API
+    failure the JS status text instructs the user to use manual copy.
 
     Args:
-        label: The label for the button.
-        text: The text to be copied to the clipboard.
-        key: A unique key identifier for HTML elements.
+        label: The button label text.
+        text: The text to copy to the clipboard.
+        key: A unique identifier used for HTML element IDs.
     """
     if not text:
         st.caption("無可複製內容。")
         return
 
     safe_label = html.escape(label)
-    # Escape </ to <\/ so that any </script> sequence inside the content
-    # cannot prematurely close the enclosing <script> tag when embedded
-    # in the HTML component (standard script-context escaping).
+    # Escape </ to <\/ so that </script> inside content cannot prematurely
+    # close the enclosing <script> tag (standard script-context escaping).
     text_json = json.dumps(text).replace("</", r"<\/")
     key_safe = html.escape(key)
 
-    components.html(
+    st.iframe(
         f"""
         <button id="copy-{key_safe}" style="
             background: linear-gradient(135deg, #4f46e5, #0891b2);
@@ -71,7 +77,7 @@ def render_copy_button(label: str, text: str, key: str) -> None:
                     status.textContent = "";
                 }}, 2000);
             }} catch (err) {{
-                status.textContent = "複製失敗，請手動選取文字。";
+                status.textContent = "複製失敗，請改用下方文字框手動複製。";
             }}
         }};
         btn.onmouseover = () => {{
@@ -87,6 +93,54 @@ def render_copy_button(label: str, text: str, key: str) -> None:
         height=45,
     )
 
+    with st.expander(f"{label}（手動複製）", expanded=False):
+        st.text_area(
+            f"{label}（手動複製）",
+            value=text,
+            height=150,
+            key=f"manual_copy_{key}",
+            label_visibility="collapsed",
+            help="請點進文字框，全選後複製。",
+        )
+        st.caption("請點進文字框，全選後複製。")
+
+
+def _init_session_state() -> None:
+    """Initialise stable session state keys if not already set."""
+    if "default_output" not in st.session_state:
+        st.session_state.default_output = str(default_output_dir())
+    if "input_path_val" not in st.session_state:
+        st.session_state.input_path_val = ""
+    if "output_path_val" not in st.session_state:
+        st.session_state.output_path_val = st.session_state.default_output
+
+
+def _apply_dialog_result(dlg, state_key: str, notice_key: str) -> None:
+    """Apply a DialogResult to session state from a widget on_click callback.
+
+    Callbacks run before the script body re-executes, so it is safe here
+    to assign ``st.session_state[state_key]`` even though a widget with
+    that key will be instantiated later in the same rerun.
+    """
+    if dlg.success:
+        st.session_state[state_key] = dlg.path_text
+        st.session_state.pop(notice_key, None)
+    else:
+        level = "info" if "未選擇" in dlg.message else "warning"
+        st.session_state[notice_key] = (level, dlg.message)
+
+
+def _show_notice(notice_key: str) -> None:
+    """Render a stored dialog notice, if any."""
+    notice = st.session_state.get(notice_key)
+    if notice is None:
+        return
+    level, message = notice
+    if level == "info":
+        st.info(message)
+    else:
+        st.warning(message)
+
 
 def main() -> None:
     """Run the Streamlit Local UI application."""
@@ -96,7 +150,6 @@ def main() -> None:
         initial_sidebar_state="collapsed",
     )
 
-    # Inject premium UI aesthetics via custom CSS
     st.markdown(
         """
         <style>
@@ -141,41 +194,99 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    # Initialize stable default output folder in session state
-    if "default_output" not in st.session_state:
-        st.session_state.default_output = str(default_output_dir())
+    _init_session_state()
 
     col1, col2 = st.columns([1, 1], gap="large")
 
     with col1:
         st.subheader("參數設定")
 
-        # Basic Section
-        input_path_str = st.text_input(
-            "Input path (TCX 檔案或資料夾路徑)",
-            value="",
-            help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
+        # ── Input path ─────────────────────────────────────────────────────
+        col_in, col_btn_file, col_btn_dir = st.columns(
+            [3, 1, 1], vertical_alignment="bottom"
         )
 
-        # Immediate input path check
-        status = inspect_input_path(input_path_str)
-        if status.is_valid:
-            st.success(status.message)
+        def _on_pick_tcx_file() -> None:
+            _apply_dialog_result(
+                select_tcx_file_dialog(), "input_path_val", "_input_notice"
+            )
+
+        def _on_pick_tcx_dir() -> None:
+            _apply_dialog_result(
+                select_directory_dialog("選擇包含 TCX 的資料夾"),
+                "input_path_val",
+                "_input_notice",
+            )
+
+        with col_btn_file:
+            st.button(
+                "選擇 TCX 檔案",
+                key="btn_tcx_file",
+                on_click=_on_pick_tcx_file,
+            )
+
+        with col_btn_dir:
+            st.button(
+                "選擇 TCX 資料夾",
+                key="btn_tcx_dir",
+                on_click=_on_pick_tcx_dir,
+            )
+
+        with col_in:
+            input_path_str = st.text_input(
+                "Input path (TCX 檔案或資料夾路徑)",
+                help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
+                key="input_path_val",
+            )
+
+        _show_notice("_input_notice")
+
+        # Immediate input path validation
+        path_status = inspect_input_path(input_path_str)
+        if path_status.is_valid:
+            st.success(path_status.message)
         else:
             if not input_path_str.strip():
-                st.warning(status.message)
+                st.warning(path_status.message)
             else:
-                st.error(status.message)
+                st.error(path_status.message)
 
-        output_dir_str = st.text_input(
-            "Output folder (輸出資料夾)",
-            value=st.session_state.default_output,
-            help="轉換後的結果儲存目錄。留空將使用自動產生的預設資料夾。",
+        # ── Output folder ──────────────────────────────────────────────────
+        col_out, col_btn_out = st.columns(
+            [3, 1], vertical_alignment="bottom"
         )
 
-        if st.button("重新產生預設輸出資料夾"):
-            st.session_state.default_output = str(default_output_dir())
-            st.rerun()
+        def _on_pick_output_dir() -> None:
+            _apply_dialog_result(
+                select_directory_dialog("選擇輸出資料夾"),
+                "output_path_val",
+                "_output_notice",
+            )
+
+        def _on_reset_default_output() -> None:
+            new_default = str(default_output_dir())
+            st.session_state.default_output = new_default
+            st.session_state.output_path_val = new_default
+
+        with col_btn_out:
+            st.button(
+                "選擇輸出資料夾",
+                key="btn_out_dir",
+                on_click=_on_pick_output_dir,
+            )
+
+        with col_out:
+            output_dir_str = st.text_input(
+                "Output folder (輸出資料夾)",
+                help="轉換後的結果儲存目錄。留空將使用自動產生的預設資料夾。",
+                key="output_path_val",
+            )
+
+        _show_notice("_output_notice")
+
+        st.button(
+            "重新產生預設輸出資料夾", on_click=_on_reset_default_output
+        )
 
         st.markdown("**輸出選項**")
         write_coach_handoff = st.checkbox(
@@ -195,13 +306,11 @@ def main() -> None:
                     "keep：保留 GPS 座標，僅在你確定要保留時使用。"
                 ),
             )
-
             timezone_name = st.text_input(
                 "Timezone (本地時區)",
                 value="Asia/Taipei",
                 help="指定時區名稱，例如 Asia/Taipei 或 UTC。",
             )
-
             max_gap_minutes = st.number_input(
                 "Max gap minutes (活動分組間隔上限)",
                 min_value=0,
@@ -209,7 +318,6 @@ def main() -> None:
                 step=1,
                 help="相同 local date 下分組 adjacent activities 的最大間隔。",
             )
-
             write_atomic = st.checkbox(
                 "Generate atomic artifacts (產生詳細除錯檔)",
                 value=False,
@@ -218,7 +326,9 @@ def main() -> None:
 
         # Pre-run Summary
         st.markdown("### 即將執行：")
-        tcx_desc = f"{status.tcx_count} 個" if status.is_valid else "無效"
+        tcx_desc = (
+            f"{path_status.tcx_count} 個" if path_status.is_valid else "無效"
+        )
         st.markdown(
             f"- **Input**: `{input_path_str.strip() or '未填寫'}`\n"
             f"- **TCX count**: {tcx_desc}\n"
@@ -230,18 +340,20 @@ def main() -> None:
 
         if gps_policy == "keep":
             st.warning(
-                "目前 GPS policy = keep，輸出可能保留完整座標。請確認你真的需要保留 GPS。"
+                "目前 GPS policy = keep，輸出可能保留完整座標。"
+                "請確認你真的需要保留 GPS。"
             )
 
         st.markdown(
-            "<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True
+            "<div style='margin-top: 1.5rem;'></div>",
+            unsafe_allow_html=True,
         )
         run_btn = st.button("開始轉換")
 
         if run_btn:
-            status = inspect_input_path(input_path_str)
-            if not status.is_valid:
-                st.error(f"無法執行：{status.message}")
+            run_status = inspect_input_path(input_path_str)
+            if not run_status.is_valid:
+                st.error(f"無法執行：{run_status.message}")
                 if "run_result" in st.session_state:
                     del st.session_state["run_result"]
             else:
@@ -258,38 +370,34 @@ def main() -> None:
                 with st.spinner("執行轉換中..."):
                     result = run_bundle(config)
                 st.session_state.run_result = result
+                st.session_state.run_counter = (
+                    st.session_state.get("run_counter", 0) + 1
+                )
 
     with col2:
         st.subheader("轉換結果")
-
         if "run_result" in st.session_state:
             res = st.session_state.run_result
             if res.success:
                 st.success("🎉 轉換成功！")
-
                 if res.warning_messages:
                     st.warning("執行過程中包含以下警告：")
                     for warning in res.warning_messages:
                         st.write(f"- {warning}")
-
-                # Display key metrics
                 m1, m2 = st.columns(2)
                 m1.metric("活動數量 (Activity Count)", res.activity_count)
                 m2.metric(
                     "詳細除錯檔數量 (Atomic Artifacts)",
                     len(res.atomic_artifact_paths),
                 )
-
                 st.markdown("### 輸出路徑")
                 st.code(str(res.output_dir.resolve()), language="text")
-
                 if st.button("打開輸出資料夾"):
                     open_res = open_folder(res.output_dir)
                     if open_res.success:
                         st.success(open_res.message)
                     else:
                         st.error(open_res.message)
-
                 st.markdown("### 輸出狀態")
                 st.markdown(
                     "- **session_bundle.json**: "
@@ -303,49 +411,33 @@ def main() -> None:
                     "- **coach_handoff.md**: "
                     f"{output_file_status(res.coach_handoff_markdown_path)}"
                 )
-
                 st.markdown("### 複製輸出內容")
-
-                # Check and read session_bundle.json
-                sb_json_text = read_output_text(res.session_bundle_json_path)
-                if sb_json_text:
-                    render_copy_button(
-                        "複製 session_bundle.json",
-                        sb_json_text,
-                        "session_bundle_json",
-                    )
-                else:
-                    st.write("session_bundle.json: 未產生，無法複製。")
-
-                # Check and read session_bundle.md
-                sb_md_text = read_output_text(res.session_bundle_markdown_path)
-                if sb_md_text:
-                    render_copy_button(
-                        "複製 session_bundle.md",
-                        sb_md_text,
-                        "session_bundle_markdown",
-                    )
-                else:
-                    st.write("session_bundle.md: 未產生，無法複製。")
-
-                # Check and read coach_handoff.md
-                ch_md_text = read_output_text(res.coach_handoff_markdown_path)
-                if ch_md_text:
-                    render_copy_button(
-                        "複製 coach_handoff.md",
-                        ch_md_text,
-                        "coach_handoff_markdown",
-                    )
-                else:
-                    st.write("coach_handoff.md: 未產生，無法複製。")
+                run_key = st.session_state.get("run_counter", 0)
+                render_copy_button_or_text_area(
+                    "複製 session_bundle.json",
+                    read_output_text(res.session_bundle_json_path),
+                    f"session_bundle_json_{run_key}",
+                )
+                render_copy_button_or_text_area(
+                    "複製 session_bundle.md",
+                    read_output_text(res.session_bundle_markdown_path),
+                    f"session_bundle_markdown_{run_key}",
+                )
+                render_copy_button_or_text_area(
+                    "複製 coach_handoff.md",
+                    read_output_text(res.coach_handoff_markdown_path),
+                    f"coach_handoff_markdown_{run_key}",
+                )
             else:
                 st.error("❌ 轉換失敗！")
                 st.error(
-                    "轉換失敗，請先檢查 Input path、TCX 檔案格式、Timezone 或輸出路徑。"
+                    "轉換失敗，請先檢查 Input path、TCX 檔案格式、"
+                    "Timezone 或輸出路徑。"
                 )
                 with st.expander("技術錯誤訊息", expanded=True):
                     st.code(
-                        res.error_message or "無詳細錯誤訊息", language="text"
+                        res.error_message or "無詳細錯誤訊息",
+                        language="text",
                     )
                 if res.warning_messages:
                     st.warning("警告：")
@@ -354,19 +446,21 @@ def main() -> None:
         else:
             st.info("尚未執行轉換。請設定左側參數，並點擊「開始轉換」按鈕。")
 
-    # Render preview section at the bottom, using full width and unrestricted height
+    # ── Full-width preview section ─────────────────────────────────────────
     if "run_result" in st.session_state:
         res = st.session_state.run_result
         if res.success:
             st.markdown("---")
             st.markdown("### 輸出檔案預覽")
-
             sb_json_text = read_output_text(res.session_bundle_json_path)
             sb_md_text = read_output_text(res.session_bundle_markdown_path)
             ch_md_text = read_output_text(res.coach_handoff_markdown_path)
-
             tab1, tab2, tab3 = st.tabs(
-                ["session_bundle.json", "session_bundle.md", "coach_handoff.md"]
+                [
+                    "session_bundle.json",
+                    "session_bundle.md",
+                    "coach_handoff.md",
+                ]
             )
             with tab1:
                 if sb_json_text:

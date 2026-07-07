@@ -353,3 +353,38 @@ scope creep。
 - 不修改 pipeline / CLI / parser / normalizer / exporter / session contract。
 
 
+## Phase 20：Native Path Picker and Copy API Compatibility
+
+目標：
+- 新增本機 native file/folder picker，降低手動輸入路徑負擔。
+- 修正 copy-to-clipboard implementation，避免使用 deprecated Streamlit component HTML API。
+- 保留手動路徑輸入與手動複製 fallback。
+
+完成條件：
+- 可用按鈕選擇單一 TCX 檔案。
+- 可用按鈕選擇 TCX 資料夾。
+- 可用按鈕選擇輸出資料夾。
+- dialog 不可用或取消時 UI 不 crash。
+- copy action 不使用 `st.components.v1.html` / `components.html`。
+- 不再出現 `st.components.v1.html` deprecation warning。
+- 若 clipboard copy 不可用，提供手動複製 fallback 說明。
+- 不新增 dependencies。
+- 不修改 pipeline / CLI / parser / normalizer / exporter / session contract。
+
+Non-goals：
+- 不做 file uploader。
+- 不做 drag-and-drop upload。
+- 不做 cloud upload。
+- 不做 EXE 打包。
+- 不做多頁式 UI。
+- 不做圖表。
+- 不做 AI coaching。
+- 不做 Garmin Connect API。
+- 不做資料庫。
+- 不做雲端同步。
+- 不做 HR zone / Garmin zone。
+- 不做課表角色推論。
+- 不做 planned workout matching。
+- 不新增 dependencies。
+
+
