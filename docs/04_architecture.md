@@ -27,6 +27,9 @@ AI 教練或 AI 工具的標準輸入是：
 不論輸入是單一 TCX 或多個 TCX，都使用 session bundle 作為
 coach-facing artifact。
 
+Coach-facing artifact 是 multi-activity report/package。它保留每個
+TCX activity identity，不會將多個 activities 合成一個 recorded workout。
+
 ## 2. Module Responsibility
 
 ```text

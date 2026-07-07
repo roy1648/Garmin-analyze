@@ -27,6 +27,14 @@ from garmin_tcx_ai.models import (
 )
 from garmin_tcx_ai.normalizer import normalize_activity
 
+MISLEADING_REPORT_WORDING = (
+    "merged workout",
+    "merged session",
+    "combined workout",
+    "合併成一堂訓練",
+    "合併成一堂課",
+)
+
 
 def _make_activity() -> ParsedActivity:
     """Build a normalized-looking ParsedActivity for exporter tests."""
@@ -327,6 +335,11 @@ def test_session_bundle_json_has_complete_top_level_keys(
     }
     assert data["export_scope"]["activity_count"] == 2
     assert data["export_scope"]["contains_multiple_activities"] is True
+    assert "schema_version" in data
+    assert "export_scope" in data
+    assert "data_policy" in data
+    assert "sessions" in data
+    assert "session_candidate_count" in data["export_scope"]
 
 
 def test_single_activity_session_bundle_json_is_standard_output(
@@ -376,6 +389,11 @@ def test_single_activity_session_bundle_markdown_is_standard_output(
     activity.trackpoints[0].power_watts = 210
     path = write_session_bundle_markdown([activity], tmp_path)
     text = path.read_text(encoding="utf-8")
+    assert text.splitlines()[0] == "# TCX Multi-Activity Report"
+    assert (
+        "does not merge them into one recorded workout"
+        in text
+    )
     assert path == tmp_path / "session_bundle" / "session_bundle.md"
     assert "- Activities: 1" in text
     assert "- Session candidates: 1" in text
@@ -400,7 +418,7 @@ def test_session_bundle_markdown_is_factual_and_private(
     text = path.read_text(encoding="utf-8")
     lowered = text.lower()
     for heading in (
-        "# TCX Session Bundle",
+        "# TCX Multi-Activity Report",
         "## Data Policy",
         "## Export Scope",
         "## Session Candidates",
@@ -412,6 +430,14 @@ def test_session_bundle_markdown_is_factual_and_private(
     ):
         assert heading in text
     assert "Suggested AI Analysis Questions" not in text
+    assert (
+        "Session candidates are candidate activity groups for review"
+        in text
+    )
+    assert (
+        "does not merge them into one recorded workout"
+        in text
+    )
     for phrase in (
         "latitude",
         "longitude",
@@ -420,4 +446,6 @@ def test_session_bundle_markdown_is_factual_and_private(
         "you should",
         "we recommend",
     ):
+        assert phrase not in lowered
+    for phrase in MISLEADING_REPORT_WORDING:
         assert phrase not in lowered
