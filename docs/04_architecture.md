@@ -23,6 +23,7 @@ AI 教練或 AI 工具的標準輸入是：
 
 - `session_bundle/session_bundle.json`
 - `session_bundle/session_bundle.md`
+- `session_bundle/coach_handoff.md` (可選)
 
 不論輸入是單一 TCX 或多個 TCX，都使用 session bundle 作為
 coach-facing artifact。
@@ -125,7 +126,7 @@ Exporters 不解析 TCX，也不加入 business logic 或 inference。
 責任：
 
 - 提供 `garmin-tcx-ai` 命令與 `bundle` 子命令的進入點。
-- 使用 `argparse` 解析命令列參數（如 `--input`、`--output`、`--gps-policy`、`--timezone`、`--max-gap-minutes`、`--write-atomic`）。
+- 使用 `argparse` 解析命令列參數（如 `--input`、`--output`、`--gps-policy`、`--timezone`、`--max-gap-minutes`、`--write-atomic`、`--write-coach-handoff`）。
 - 協調（Orchestration）整個轉換流程：讀取檔案、呼叫 parser 與 normalizer、套用隱私政策，並透過 exporters 輸出。
 - 處理環境異常（如檔案不存在、無效時區或合併間隔為負值），提供友善的錯誤訊息並返回對應的 exit code。
 

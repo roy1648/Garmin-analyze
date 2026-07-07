@@ -202,3 +202,19 @@ scope creep。
 - 完成 CLI pytest 測試覆蓋。
 - 排除 Suggested Questions 與 role inference 等推論內容。
 
+## Phase 12：Coach Handoff Markdown (PR #12)
+
+目標：
+
+- 新增可選的 `--write-coach-handoff` CLI 旗標。
+- 產生 `session_bundle/coach_handoff.md` 作為直接複製給跑步教練 Agent 的 Markdown 報告。
+
+完成條件：
+
+- 僅在傳入旗標時輸出 `session_bundle/coach_handoff.md`。
+- Handoff 報告包含 manual context 空白欄位以供手動填寫。
+- Handoff 報告不包含 GPS 座標與 route details。
+- Handoff 報告不包含 Suggested Questions 與 AI coaching advice。
+- Handoff 報告包含 `session_bundle.md` 的所有核心內容。
+- 單元測試與 CLI 測試覆蓋 handoff 的生成與內容安全性。
+
