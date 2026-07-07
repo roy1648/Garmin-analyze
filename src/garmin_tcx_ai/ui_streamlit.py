@@ -33,7 +33,10 @@ def render_copy_button(label: str, text: str, key: str) -> None:
         return
 
     safe_label = html.escape(label)
-    text_json = json.dumps(text)
+    # Escape </ to <\/ so that any </script> sequence inside the content
+    # cannot prematurely close the enclosing <script> tag when embedded
+    # in the HTML component (standard script-context escaping).
+    text_json = json.dumps(text).replace("</", r"<\/")
     key_safe = html.escape(key)
 
     components.html(
