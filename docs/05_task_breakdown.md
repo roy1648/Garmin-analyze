@@ -218,3 +218,28 @@ scope creep。
 - Handoff 報告包含 `session_bundle.md` 的所有核心內容。
 - 單元測試與 CLI 測試覆蓋 handoff 的生成與內容安全性。
 
+## Phase 13：Traditional Chinese Markdown wording polish (PR #13)
+
+目標：
+
+- 將 coach-facing Markdown 輸出（`session_bundle.md`、`coach_handoff.md` 等）翻譯與優化為台灣繁體中文，保留核心專有名詞，提升易讀性。
+
+完成條件：
+
+- 輸出 Markdown 標題、說明字句與部分狀態轉換為台灣繁中。
+- 保留關鍵英文術語（如 Data Policy, Export Scope, Session Candidates, Laps 等）作為雙語對照。
+- 單元測試與 CLI 測試覆蓋繁中字句，確認不包含舊版誤導詞彙。
+
+## Phase 14：MVP Contract Hardening & Closure (PR #14)
+
+目標：
+
+- 修正 `session_bundle.md` 中的 Data Policy 契約穩定性，還原 4 個核心英文契約句以供下游消費端或自動化測試進行精確斷言。
+- 補齊對應的單元測試與文件收斂，宣布 MVP 完成。
+
+完成條件：
+
+- `render_session_bundle_markdown()` 的 Markdown 輸出中，Data Policy 段落及報告首部完整包含指定的 4 個英文契約句。
+- pytest 單元測試能成功斷言這 4 個英文契約句的存在。
+- 文件與 README 完成收斂與整理。
+- **MVP 收斂公告**：本專案已正式進入關閉與收斂模式 (closure mode)。未來所有 PR 均不得新增支線或主要功能（例如：HR zone、Garmin zone、AI coaching、課表角色推論、週報、UI、資料庫、Garmin API、NotebookLM、OpenAI/Claude/Gemini API），除非使用者明確改變專案範疇並批准。

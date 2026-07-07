@@ -108,18 +108,26 @@ def render_session_bundle_markdown(bundle: dict) -> str:
         "# TCX Multi-Activity Report",
         "# TCX 多活動報告",
         "",
+        "This report packages one or more TCX activities for AI-readable "
+        "review. It does not merge them into one recorded workout.",
         "本報告封裝一或多個 TCX 活動以供 AI 讀取審閱。這並不代表將它們合併為單次記錄的運動。",
         "",
         "## Data Policy",
         "## 資料政策",
         "",
-        "- Session 分組僅為候選分組，而非記錄事實。",
+        "- Session candidates are candidate activity groups for review; "
+        "they do not merge activities into one recorded workout.",
         "- Session 候選分組為供審閱的候選活動分組；它們不會將活動合併為單次記錄的運動。",
+        "- Session 分組僅為候選分組，而非記錄事實。",
         "- 角色推論已停用。",
         "- 活動角色未推論。",
         f"- 課表／活動角色推論已停用："
         f"{policy['no_workout_role_inference']}",
+        "- Manual context fields are placeholders only and were not "
+        "inferred from TCX.",
         "- 手動補充資訊欄位僅為預留位置，未從 TCX 推論。",
+        "- Cadence values are raw Garmin RunCadence values; no "
+        "cadence x2 conversion is applied.",
         "- 步頻值為原始 Garmin RunCadence 值；未套用步頻 2 倍換算。",
         "",
         "## Export Scope",

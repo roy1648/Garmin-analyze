@@ -383,11 +383,31 @@ def test_markdown_has_fixed_sections_and_no_sensitive_content() -> None:
     assert lines[0] == "# TCX Multi-Activity Report"
     assert lines[1] == "# TCX 多活動報告"
     assert (
+        "This report packages one or more TCX activities for AI-readable "
+        "review. It does not merge them into one recorded workout."
+        in markdown
+    )
+    assert (
         "這並不代表將它們合併為單次記錄的運動"
         in markdown
     )
     assert (
+        "Session candidates are candidate activity groups for review; "
+        "they do not merge activities into one recorded workout."
+        in markdown
+    )
+    assert (
         "Session 候選分組為供審閱的候選活動分組"
+        in markdown
+    )
+    assert (
+        "Manual context fields are placeholders only and were not "
+        "inferred from TCX."
+        in markdown
+    )
+    assert (
+        "Cadence values are raw Garmin RunCadence values; no "
+        "cadence x2 conversion is applied."
         in markdown
     )
     for heading in (
