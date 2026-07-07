@@ -1,24 +1,56 @@
 # Garmin TCX AI
 
-個人 Garmin Connect 資料 ETL 與分析專案的最小 Python scaffold。
+個人 Garmin Connect 資料 ETL 與分析專案。
 
-目前範圍只包含專案結構、套件初始化與 import smoke test。尚未實作
-TCX parser、轉換流程、Garmin API、資料庫、Web UI 或 AI API 整合。
+本專案提供一個將 Garmin 手動匯出的 Running TCX 檔案進行解析、
+資料清理、隱私遮蔽，並輸出為 AI 教練或工具可讀的 Session Bundle。
 
 ## 專案結構
 
 ```text
-src/garmin_tcx_ai/      # Python package
-scripts/convert_tcx.py  # 未來轉換指令的 placeholder
-tests/                  # pytest 測試
-tests/fixtures/         # 已提交的最小清理測試資料
-data/samples/           # 本機範例資料，避免依賴私人資料
+src/garmin_tcx_ai/      # Python 核心套件 (Parser, Normalizer, Exporters, CLI)
+scripts/convert_tcx.py  # 腳本範例入口
+tests/                  # pytest 測試套件
+tests/fixtures/         # 已提交的最小清理測試資料 (Sanitized Fixtures)
+data/samples/           # 本機測試資料目錄 (Git 忽略)
+data/processed/         # 本機轉換輸出目錄 (Git 忽略)
 ```
 
-## 開發
+## 安裝與執行
 
-建議使用 Python 3.12+。
+本專案支援 Python 3.12+，並建議使用 `uv` 進行環境管理。
+
+若要直接以 CLI 轉換 TCX 檔案：
 
 ```powershell
-python -m pytest
+# 轉換單一檔案或資料夾至指定的 session bundle
+uv run garmin-tcx-ai bundle `
+  --input data/samples `
+  --output data/processed/smoke_local `
+  --gps-policy redact_start_end `
+  --timezone Asia/Taipei `
+  --max-gap-minutes 30
+```
+
+### CLI 參數說明
+
+- `--input`：必填。可以指定單一 `.tcx` 檔案，或是包含 `.tcx` 檔案的資料夾。如果是資料夾，僅會掃描第一層檔案。
+- `--output`：必填。指定輸出的目標資料夾。
+- `--gps-policy`：GPS 隱私政策，預設為 `redact_start_end`（模糊化起終點）。可選 `keep` 或 `remove`。
+- `--timezone`：本地時間轉換時區，預設為 `Asia/Taipei`。
+- `--max-gap-minutes`：活動間隔合併閾值（分鐘），預設為 `30`。
+- `--write-atomic`：若加上此旗標，會額外輸出 per-activity 的除錯用詳細 artifacts (`activity.json`、`trackpoints.csv`、`ai_summary.json/md`)。
+
+## 開發與測試
+
+執行 pytest 測試：
+
+```powershell
+uv run python -m pytest -q
+```
+
+執行 Ruff 靜態檢查：
+
+```powershell
+uv run python -m ruff check src tests --no-cache
 ```

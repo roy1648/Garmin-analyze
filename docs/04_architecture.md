@@ -33,7 +33,7 @@ TCX activity identity，不會將多個 activities 合成一個 recorded workout
 ## 2. Module Responsibility
 
 ```text
-TCX file(s)
+CLI (cli.py) / TCX file(s)
   -> parser.py
   -> normalizer.py
   -> privacy.py
@@ -119,6 +119,17 @@ Session grouping 是 candidate，不是 TCX 來源中的事實，也不是課表
   ISO 8601。
 
 Exporters 不解析 TCX，也不加入 business logic 或 inference。
+
+### 2.7 `cli.py`
+
+責任：
+
+- 提供 `garmin-tcx-ai` 命令與 `bundle` 子命令的進入點。
+- 使用 `argparse` 解析命令列參數（如 `--input`、`--output`、`--gps-policy`、`--timezone`、`--max-gap-minutes`、`--write-atomic`）。
+- 協調（Orchestration）整個轉換流程：讀取檔案、呼叫 parser 與 normalizer、套用隱私政策，並透過 exporters 輸出。
+- 處理環境異常（如檔案不存在、無效時區或合併間隔為負值），提供友善的錯誤訊息並返回對應的 exit code。
+
+CLI 不加入任何 business logic 或核心資料推論。
 
 ## 3. Session Bundle API
 
