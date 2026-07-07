@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+import json
 from pathlib import Path
 
 import streamlit as st
@@ -11,9 +13,77 @@ from garmin_tcx_ai.ui_helpers import (
     default_output_dir,
     inspect_input_path,
     normalize_output_path,
+    open_folder,
     output_file_status,
-    read_text_if_exists,
+    read_output_text,
+    select_file_dialog,
+    select_folder_dialog,
 )
+
+
+def render_copy_button(label: str, text: str, key: str) -> None:
+    """Render a browser-side copy-to-clipboard button.
+
+    Args:
+        label: The label for the button.
+        text: The text to be copied to the clipboard.
+        key: A unique key identifier for HTML elements.
+    """
+    if not text:
+        st.caption("無可複製內容。")
+        return
+
+    safe_label = html.escape(label)
+    text_json = json.dumps(text)
+    key_safe = html.escape(key)
+
+    st.iframe(
+        f"""
+        <button id="copy-{key_safe}" style="
+            background: linear-gradient(135deg, #4f46e5, #0891b2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        "> {safe_label} </button>
+        <span id="copy-status-{key_safe}" style="
+            margin-left: 8px;
+            font-size: 13px;
+            color: #10b981;
+            font-family: system-ui, sans-serif;
+            font-weight: 500;
+        "></span>
+        <script>
+        const btn = document.getElementById("copy-{key_safe}");
+        const status = document.getElementById("copy-status-{key_safe}");
+        btn.onclick = async () => {{
+            try {{
+                await navigator.clipboard.writeText({text_json});
+                status.textContent = "已複製";
+                setTimeout(() => {{
+                    status.textContent = "";
+                }}, 2000);
+            }} catch (err) {{
+                status.textContent = "複製失敗，請手動選取文字。";
+            }}
+        }};
+        btn.onmouseover = () => {{
+            btn.style.opacity = "0.9";
+            btn.style.transform = "translateY(-0.5px)";
+        }};
+        btn.onmouseout = () => {{
+            btn.style.opacity = "1";
+            btn.style.transform = "none";
+        }};
+        </script>
+        """,
+        height=45,
+    )
 
 
 def main() -> None:
@@ -69,21 +139,42 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    # Initialize stable default output folder in session state
+    # Initialize stable default values in session state
     if "default_output" not in st.session_state:
         st.session_state.default_output = str(default_output_dir())
+    if "input_path_val" not in st.session_state:
+        st.session_state.input_path_val = ""
+    if "output_path_val" not in st.session_state:
+        st.session_state.output_path_val = st.session_state.default_output
 
     col1, col2 = st.columns([1, 1], gap="large")
 
     with col1:
         st.subheader("參數設定")
 
-        # Basic Section
-        input_path_str = st.text_input(
-            "Input path (TCX 檔案或資料夾路徑)",
-            value="",
-            help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
+        # Basic Section with native dialog pickers inline
+        col_in_text, col_in_btn_file, col_in_btn_dir = st.columns(
+            [3, 1, 1], vertical_alignment="bottom"
         )
+        with col_in_text:
+            input_path_str = st.text_input(
+                "Input path (TCX 檔案或資料夾路徑)",
+                value=st.session_state.input_path_val,
+                help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
+            )
+            st.session_state.input_path_val = input_path_str
+        with col_in_btn_file:
+            if st.button("選擇檔案", key="btn_select_file"):
+                selected = select_file_dialog()
+                if selected:
+                    st.session_state.input_path_val = selected
+                    st.rerun()
+        with col_in_btn_dir:
+            if st.button("選擇資料夾", key="btn_select_dir_in"):
+                selected = select_folder_dialog()
+                if selected:
+                    st.session_state.input_path_val = selected
+                    st.rerun()
 
         # Immediate input path check
         status = inspect_input_path(input_path_str)
@@ -95,14 +186,26 @@ def main() -> None:
             else:
                 st.error(status.message)
 
-        output_dir_str = st.text_input(
-            "Output folder (輸出資料夾)",
-            value=st.session_state.default_output,
-            help="轉換後的結果儲存目錄。留空將使用自動產生的預設資料夾。",
+        col_out_text, col_out_btn = st.columns(
+            [4, 1], vertical_alignment="bottom"
         )
+        with col_out_text:
+            output_dir_str = st.text_input(
+                "Output folder (輸出資料夾)",
+                value=st.session_state.output_path_val,
+                help="轉換後的結果儲存目錄。留空將使用自動產生的預設資料夾。",
+            )
+            st.session_state.output_path_val = output_dir_str
+        with col_out_btn:
+            if st.button("選擇資料夾", key="btn_select_dir_out"):
+                selected = select_folder_dialog()
+                if selected:
+                    st.session_state.output_path_val = selected
+                    st.rerun()
 
         if st.button("重新產生預設輸出資料夾"):
             st.session_state.default_output = str(default_output_dir())
+            st.session_state.output_path_val = st.session_state.default_output
             st.rerun()
 
         st.markdown("**輸出選項**")
@@ -188,7 +291,7 @@ def main() -> None:
                 st.session_state.run_result = result
 
     with col2:
-        st.subheader("轉換結果與預覽")
+        st.subheader("轉換結果")
 
         if "run_result" in st.session_state:
             res = st.session_state.run_result
@@ -211,7 +314,14 @@ def main() -> None:
                 st.markdown("### 輸出路徑")
                 st.code(str(res.output_dir.resolve()), language="text")
 
-                st.markdown("### 輸出狀態與下載")
+                if st.button("打開輸出資料夾"):
+                    open_res = open_folder(res.output_dir)
+                    if open_res.success:
+                        st.success(open_res.message)
+                    else:
+                        st.error(open_res.message)
+
+                st.markdown("### 輸出狀態")
                 st.markdown(
                     "- **session_bundle.json**: "
                     f"{output_file_status(res.session_bundle_json_path)}"
@@ -225,46 +335,40 @@ def main() -> None:
                     f"{output_file_status(res.coach_handoff_markdown_path)}"
                 )
 
-                # Download buttons if files exist
-                sb_content = read_text_if_exists(
-                    res.session_bundle_markdown_path
-                )
-                ch_content = read_text_if_exists(
-                    res.coach_handoff_markdown_path
-                )
+                st.markdown("### 複製輸出內容")
 
-                dl_col1, dl_col2 = st.columns(2)
-                with dl_col1:
-                    if sb_content:
-                        st.download_button(
-                            label="下載 session_bundle.md",
-                            data=sb_content,
-                            file_name="session_bundle.md",
-                            mime="text/markdown",
-                        )
-                with dl_col2:
-                    if ch_content:
-                        st.download_button(
-                            label="下載 coach_handoff.md",
-                            data=ch_content,
-                            file_name="coach_handoff.md",
-                            mime="text/markdown",
-                        )
+                # Check and read session_bundle.json
+                sb_json_text = read_output_text(res.session_bundle_json_path)
+                if sb_json_text:
+                    render_copy_button(
+                        "複製 session_bundle.json",
+                        sb_json_text,
+                        "session_bundle_json",
+                    )
+                else:
+                    st.write("session_bundle.json: 未產生，無法複製。")
 
-                st.markdown("---")
+                # Check and read session_bundle.md
+                sb_md_text = read_output_text(res.session_bundle_markdown_path)
+                if sb_md_text:
+                    render_copy_button(
+                        "複製 session_bundle.md",
+                        sb_md_text,
+                        "session_bundle_markdown",
+                    )
+                else:
+                    st.write("session_bundle.md: 未產生，無法複製。")
 
-                # Markdown preview expanders
-                with st.expander("預覽 session_bundle.md", expanded=True):
-                    if sb_content:
-                        st.markdown(sb_content)
-                    else:
-                        st.write("未產生")
-
-                with st.expander("預覽 coach_handoff.md", expanded=True):
-                    if ch_content:
-                        st.markdown(ch_content)
-                    else:
-                        st.write("未產生")
+                # Check and read coach_handoff.md
+                ch_md_text = read_output_text(res.coach_handoff_markdown_path)
+                if ch_md_text:
+                    render_copy_button(
+                        "複製 coach_handoff.md",
+                        ch_md_text,
+                        "coach_handoff_markdown",
+                    )
+                else:
+                    st.write("coach_handoff.md: 未產生，無法複製。")
             else:
                 st.error("❌ 轉換失敗！")
                 st.error(
@@ -280,6 +384,28 @@ def main() -> None:
                         st.write(f"- {warning}")
         else:
             st.info("尚未執行轉換。請設定左側參數，並點擊「開始轉換」按鈕。")
+
+    # Render preview section at the bottom, using full width and unrestricted height
+    if "run_result" in st.session_state:
+        res = st.session_state.run_result
+        if res.success:
+            st.markdown("---")
+            st.markdown("### 輸出檔案預覽")
+
+            sb_md_text = read_output_text(res.session_bundle_markdown_path)
+            ch_md_text = read_output_text(res.coach_handoff_markdown_path)
+
+            tab1, tab2 = st.tabs(["session_bundle.md", "coach_handoff.md"])
+            with tab1:
+                if sb_md_text:
+                    st.markdown(sb_md_text)
+                else:
+                    st.write("未產生")
+            with tab2:
+                if ch_md_text:
+                    st.markdown(ch_md_text)
+                else:
+                    st.write("未產生")
 
 
 if __name__ == "__main__":
