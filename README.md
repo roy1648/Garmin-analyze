@@ -8,7 +8,7 @@
 ## 專案結構
 
 ```text
-src/garmin_tcx_ai/      # Python 核心套件 (Parser, Normalizer, Exporters, CLI)
+src/garmin_tcx_ai/      # Python 核心套件 (Parser, Normalizer, Exporters, Pipeline, CLI)
 scripts/convert_tcx.py  # 腳本範例入口
 tests/                  # pytest 測試套件
 tests/fixtures/         # 已提交的最小清理測試資料 (Sanitized Fixtures)
