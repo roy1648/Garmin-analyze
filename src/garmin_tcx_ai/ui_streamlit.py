@@ -286,6 +286,7 @@ def main() -> None:
                     type="password",
                     placeholder="使用已儲存的密碼 (如需修改請在此輸入)",
                     help="系統憑證管理員中已有儲存此帳號的密碼。",
+                    key="garmin_password_raw",
                 )
                 effective_password = (
                     password_input if password_input else stored_pwd
@@ -295,6 +296,7 @@ def main() -> None:
                     "Garmin Connect password",
                     type="password",
                     placeholder="請輸入密碼",
+                    key="garmin_password_raw",
                 )
 
             if st.button("刪除已儲存 Garmin 密碼"):
@@ -558,6 +560,10 @@ def main() -> None:
 
                         with st.spinner("從 Garmin Connect 下載 TCX 檔案中..."):
                             import_result = download_tcx_activities(import_config)
+
+                        # Clear password from state immediately
+                        if "garmin_password_raw" in st.session_state:
+                            st.session_state["garmin_password_raw"] = ""
 
                         st.session_state.import_result = import_result
 

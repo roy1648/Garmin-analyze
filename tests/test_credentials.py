@@ -143,3 +143,45 @@ def test_set_stored_password_empty_checks(monkeypatch: pytest.MonkeyPatch) -> No
     assert status.available
     assert not status.has_password
     assert "為空" in status.message
+
+
+def test_keyring_errors_redacted_in_logs_and_status(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test that keyring exceptions containing sensitive data are redacted in both status and logs."""
+    fake_kr = FakeKeyringModule()
+    # Simulate an exception containing sensitive auth details
+    fake_kr.should_raise = fake_kr.errors.KeyringError(
+        "Failed with token=secret_token_123 and password=my_raw_pass_word"
+    )
+    monkeypatch.setattr(
+        creds, "_load_keyring", lambda: (fake_kr, fake_kr.errors.KeyringError)
+    )
+
+    # Test get_stored_password logs are safe
+    caplog.clear()
+    res_get = get_stored_password("test@example.com")
+    assert res_get is None
+    log_messages = [record.message for record in caplog.records]
+    assert any("[REDACTED]" in msg for msg in log_messages)
+    assert not any("secret_token_123" in msg for msg in log_messages)
+    assert not any("my_raw_pass_word" in msg for msg in log_messages)
+
+    # Test set_stored_password status message is safe
+    status_set = set_stored_password("test@example.com", "my_new_pass")
+    assert not status_set.has_password
+    assert "secret_token_123" not in status_set.message
+    assert "my_raw_pass_word" not in status_set.message
+    assert "[REDACTED]" in status_set.message
+
+    # Test delete_stored_password status message is safe
+    status_del = delete_stored_password("test@example.com")
+    assert "secret_token_123" not in status_del.message
+    assert "my_raw_pass_word" not in status_del.message
+    assert "[REDACTED]" in status_del.message
+
+    # Test inspect_stored_password status message is safe
+    status_inspect = inspect_stored_password("test@example.com")
+    assert "secret_token_123" not in status_inspect.message
+    assert "my_raw_pass_word" not in status_inspect.message
+    assert "[REDACTED]" in status_inspect.message

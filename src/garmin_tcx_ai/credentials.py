@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,28 @@ class CredentialStatus:
     available: bool
     has_password: bool
     message: str
+
+
+def redact_sensitive_text(text: str) -> str:
+    """Redact sensitive patterns from text like password, token, cookie, etc.
+
+    Args:
+        text: The raw input string containing potential secrets.
+
+    Returns:
+        The redacted string.
+    """
+    pattern = re.compile(
+        r"(?i)\b(bearer|authorization|token|password|cookie|passwd|pwd)\b.*?(\s*[:=]\s*)([^\s,;]+)",
+        re.IGNORECASE
+    )
+    redacted = pattern.sub(r"\1\2[REDACTED]", text)
+    redacted = re.sub(
+        r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+",
+        "Bearer [REDACTED]",
+        redacted
+    )
+    return redacted
 
 
 def _load_keyring() -> tuple[object | None, type[Exception] | None]:
@@ -54,7 +77,10 @@ def get_stored_password(email: str) -> str | None:
     try:
         return keyring.get_password(SERVICE_NAME, email)  # type: ignore
     except Exception as exc:
-        logger.warning("Failed to retrieve password from keyring: %s", exc)
+        safe_msg = redact_sensitive_text(str(exc))
+        logger.warning(
+            "Failed to retrieve password from keyring: %s", safe_msg
+        )
         return None
 
 
@@ -89,12 +115,11 @@ def set_stored_password(email: str, password: str) -> CredentialStatus:
             message="已成功儲存密碼到系統認證管理員。",
         )
     except Exception as exc:
-        # Avoid printing the password. We only mention the exception type/message.
-        err_msg = str(exc)
+        safe_msg = redact_sensitive_text(str(exc))
         return CredentialStatus(
             available=True,
             has_password=False,
-            message=f"儲存密碼失敗：無法存取系統金鑰庫 ({err_msg})。",
+            message=f"儲存密碼失敗：無法存取系統金鑰庫 ({safe_msg})。",
         )
 
 
@@ -122,11 +147,11 @@ def delete_stored_password(email: str) -> CredentialStatus:
             message="已從系統認證管理員中刪除密碼。",
         )
     except Exception as exc:
-        err_msg = str(exc)
+        safe_msg = redact_sensitive_text(str(exc))
         return CredentialStatus(
             available=True,
             has_password=False,
-            message=f"刪除失敗或密碼不存在：{err_msg}。",
+            message=f"刪除失敗或密碼不存在：{safe_msg}。",
         )
 
 
@@ -160,9 +185,9 @@ def inspect_stored_password(email: str) -> CredentialStatus:
             message="系統認證管理員中未儲存此帳號的密碼。",
         )
     except Exception as exc:
-        err_msg = str(exc)
+        safe_msg = redact_sensitive_text(str(exc))
         return CredentialStatus(
             available=True,
             has_password=False,
-            message=f"檢查儲存狀態失敗：{err_msg}。",
+            message=f"檢查儲存狀態失敗：{safe_msg}。",
         )
