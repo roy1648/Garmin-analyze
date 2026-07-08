@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import threading
 
 
 @dataclass(frozen=True)
@@ -115,6 +116,10 @@ def normalize_output_path(path_text: str) -> Path:
     return Path(stripped)
 
 
+_default_dir_counter = 0
+_default_dir_lock = threading.Lock()
+
+
 def default_output_dir(base_dir: Path | None = None) -> Path:
     """Return a timestamped default UI output directory.
 
@@ -124,9 +129,14 @@ def default_output_dir(base_dir: Path | None = None) -> Path:
     Returns:
         A timestamped Path under the base directory.
     """
+    global _default_dir_counter
     root = base_dir or Path("data") / "processed"
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return root / f"ui_run_{timestamp}"
+    now = datetime.now()
+    with _default_dir_lock:
+        _default_dir_counter += 1
+        cnt = _default_dir_counter
+    timestamp = now.strftime("%Y%m%d_%H%M%S_%f")
+    return root / f"ui_run_{timestamp}_{cnt}"
 
 
 def read_text_if_exists(path: Path | None) -> str:

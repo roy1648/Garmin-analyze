@@ -259,7 +259,7 @@ scope creep。
 - 不新增 UI、不新增依賴、不修改 parser/normalizer/exporter/session contract。
 
 
-## Phase 16：Minimal Streamlit Local UI
+## Phase 16：Minimal Streamlit Local UI (post-MVP Local UI usability phase)
 
 目標：
 - 新增本機 Streamlit UI，降低日常操作門檻。
@@ -295,7 +295,7 @@ scope creep。
 - 不新增除 Streamlit 以外的 dependencies.
 
 
-## Phase 17：Improve Local UI Interaction Flow
+## Phase 17：Improve Local UI Interaction Flow (post-MVP Local UI usability phase)
 
 目標：
 - 改善本機 Streamlit UI 的填寫體驗。
@@ -331,7 +331,7 @@ scope creep。
 - 不新增 dependencies。
 
 
-## Phase 18：Improve Local UI Output Actions
+## Phase 18：Improve Local UI Output Actions (post-MVP Local UI usability phase)
 
 目標：
 - 改善 Streamlit Local UI 的輸出結果操作。
@@ -353,7 +353,18 @@ scope creep。
 - 不修改 pipeline / CLI / parser / normalizer / exporter / session contract。
 
 
-## Phase 20：Native Path Picker and Copy API Compatibility
+## Phase 19：Copy Button Script Context Escape Hotfix (post-MVP Local UI usability phase)
+
+目標：
+- 修正 HTML/JS 複製按鈕在內文包含 `</` 時（例如 `</script>`）會提前閉合 Script 標籤的安全性與渲染錯誤問題。
+- 套用標準 script-context 逸出 (escaping) 處理。
+
+完成條件：
+- 在 `ui_streamlit.py` 的 HTML/JS 複製按鈕 snippet 中，將 `</` 取代為 `<\/`。
+- 複製按鈕可安全處理包含 Markdown 及 HTML 標籤的內容而不提前中斷 Script 區塊。
+
+
+## Phase 20：Native Path Picker and Copy API Compatibility (post-MVP Local UI usability phase)
 
 目標：
 - 新增本機 native file/folder picker，降低手動輸入路徑負擔。

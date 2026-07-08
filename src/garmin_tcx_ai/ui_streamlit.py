@@ -357,18 +357,33 @@ def main() -> None:
                 if "run_result" in st.session_state:
                     del st.session_state["run_result"]
             else:
-                normalized_out = normalize_output_path(output_dir_str)
-                config = BundleRunConfig(
-                    input_path=Path(input_path_str.strip()),
-                    output_dir=normalized_out,
-                    gps_policy=gps_policy,
-                    timezone_name=timezone_name.strip(),
-                    max_gap_minutes=int(max_gap_minutes),
-                    write_atomic=write_atomic,
-                    write_coach_handoff=write_coach_handoff,
-                )
-                with st.spinner("執行轉換中..."):
-                    result = run_bundle(config)
+                from garmin_tcx_ai.pipeline import BundleRunResult
+                try:
+                    normalized_out = normalize_output_path(output_dir_str)
+                    config = BundleRunConfig(
+                        input_path=Path(input_path_str.strip()),
+                        output_dir=normalized_out,
+                        gps_policy=gps_policy,
+                        timezone_name=timezone_name.strip(),
+                        max_gap_minutes=int(max_gap_minutes),
+                        write_atomic=write_atomic,
+                        write_coach_handoff=write_coach_handoff,
+                    )
+                    with st.spinner("執行轉換中..."):
+                        result = run_bundle(config)
+                except Exception as exc:
+                    try:
+                        err_out = normalize_output_path(output_dir_str)
+                    except Exception:
+                        from garmin_tcx_ai.ui_helpers import default_output_dir
+                        err_out = default_output_dir()
+                    result = BundleRunResult(
+                        success=False,
+                        activity_count=0,
+                        output_dir=err_out,
+                        warning_messages=[],
+                        error_message=f"無法建立輸出目錄或寫入檔案，請檢查權限與路徑是否正確：{exc}",
+                    )
                 st.session_state.run_result = result
                 st.session_state.run_counter = (
                     st.session_state.get("run_counter", 0) + 1
@@ -423,11 +438,14 @@ def main() -> None:
                     read_output_text(res.session_bundle_markdown_path),
                     f"session_bundle_markdown_{run_key}",
                 )
-                render_copy_button_or_text_area(
-                    "複製 coach_handoff.md",
-                    read_output_text(res.coach_handoff_markdown_path),
-                    f"coach_handoff_markdown_{run_key}",
-                )
+                if res.coach_handoff_markdown_path is not None:
+                    render_copy_button_or_text_area(
+                        "複製 coach_handoff.md",
+                        read_output_text(res.coach_handoff_markdown_path),
+                        f"coach_handoff_markdown_{run_key}",
+                    )
+                else:
+                    st.info("本次未啟用 coach_handoff.md")
             else:
                 st.error("❌ 轉換失敗！")
                 st.error(
@@ -454,29 +472,30 @@ def main() -> None:
             st.markdown("### 輸出檔案預覽")
             sb_json_text = read_output_text(res.session_bundle_json_path)
             sb_md_text = read_output_text(res.session_bundle_markdown_path)
-            ch_md_text = read_output_text(res.coach_handoff_markdown_path)
-            tab1, tab2, tab3 = st.tabs(
-                [
-                    "session_bundle.json",
-                    "session_bundle.md",
-                    "coach_handoff.md",
-                ]
-            )
-            with tab1:
+            
+            tab_names = ["session_bundle.json", "session_bundle.md"]
+            has_handoff = res.coach_handoff_markdown_path is not None
+            if has_handoff:
+                tab_names.append("coach_handoff.md")
+                ch_md_text = read_output_text(res.coach_handoff_markdown_path)
+            
+            tabs = st.tabs(tab_names)
+            with tabs[0]:
                 if sb_json_text:
                     st.code(sb_json_text, language="json")
                 else:
                     st.write("未產生")
-            with tab2:
+            with tabs[1]:
                 if sb_md_text:
                     st.markdown(sb_md_text)
                 else:
                     st.write("未產生")
-            with tab3:
-                if ch_md_text:
-                    st.markdown(ch_md_text)
-                else:
-                    st.write("未產生")
+            if has_handoff:
+                with tabs[2]:
+                    if ch_md_text:
+                        st.markdown(ch_md_text)
+                    else:
+                        st.write("未產生")
 
 
 if __name__ == "__main__":

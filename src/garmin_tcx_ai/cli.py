@@ -79,7 +79,10 @@ def main(argv: list[str] | None = None) -> int:
         "--max-gap-minutes",
         type=int,
         default=30,
-        help="Max gap minutes between trackpoints (default: 30).",
+        help=(
+            "Max gap minutes between adjacent activities for "
+            "session candidate grouping (default: 30)."
+        ),
     )
     bundle_parser.add_argument(
         "--write-atomic",

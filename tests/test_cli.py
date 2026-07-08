@@ -366,3 +366,12 @@ def test_cli_with_coach_handoff(tmp_path: Path) -> None:
     assert "medical_interpretation" not in content.lower()
     assert "Suggested Questions" not in content
 
+
+def test_cli_help_max_gap_minutes(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that --max-gap-minutes help text has been updated."""
+    with pytest.raises(SystemExit):
+        main(["bundle", "--help"])
+    captured = capsys.readouterr()
+    assert "adjacent activities for" in captured.out
+    assert "session candidate grouping" in captured.out
+

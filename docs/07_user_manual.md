@@ -4,8 +4,7 @@
 
 ## 目前專案狀態
 
-本專案目前是個人 Garmin Connect TCX ETL 與分析工具的 MVP
-實作中版本。現有 code 已包含下列核心模組：
+本專案目前是個人 Garmin Connect TCX ETL 與分析工具，包含以下核心模組：
 
 - `parser`：解析手動匯出的 Garmin Running TCX fixture。
 - `normalizer`：套用 normalized activity 結構與 GPS policy。
@@ -14,13 +13,13 @@
 - `session`：建立 multi-TCX session bundle candidate。
 - `exporters`：輸出 `activity.json`、`trackpoints.csv`、
   `ai_summary.json`、`ai_summary.md`、`session_bundle` artifacts。
+- `ui_streamlit`：本機 Streamlit UI 介面，是已批准的 post-MVP local usability layer，提供友善的操作介面。
+- `cli`：提供 `garmin-tcx-ai` 命列行介面以供批次與腳本整合使用。
 
 重要限制：
 
-- `scripts/convert_tcx.py` 目前仍是 placeholder，執行後只會成功結束，
-  尚未提供可用的 end-to-end CLI conversion workflow。
 - MVP 範圍限於手動匯出的 Garmin Connect Running TCX。
-- 目前不包含 Garmin API login、GarminDB、database、Web UI、cloud sync
+- 目前不包含 Garmin API login、GarminDB、database、cloud-based Web UI、cloud sync
   或 AI API upload。
 - 測試使用 `tests/fixtures/` 內的 sanitized TCX fixtures，不應使用私人
   Garmin 原始資料。
@@ -95,7 +94,7 @@ uv run --with ruff python -m ruff check src tests --no-cache
 目前已驗證結果：
 
 - `uv run --with pytest python -m pytest -q --basetemp .pytest-tmp -p no:cacheprovider`
-  通過，結果為 `129 passed`。
+  通過，測試通過數量以 PR / CI 結果為準。
 - `uv run --with ruff python -m ruff check src tests --no-cache` 通過，結果為
   `All checks passed!`。
 
@@ -110,16 +109,26 @@ uv run python -m ruff check src tests --no-cache
 `No module named ruff`。這代表測試工具尚未宣告為 project dependency，
 不代表 application code 測試失敗。
 
-## CLI 現況
+## 執行與使用方式
 
-目前 CLI 入口可以執行，但不會轉換 TCX：
+本專案提供 CLI 工具與 Streamlit 本機 UI 作為主要的操作與執行入口（Local UI 作為已批准的 post-MVP local usability layer）。
+
+### 1. CLI 工具使用方式
+
+使用 `garmin-tcx-ai` 命令執行轉換：
 
 ```powershell
-uv run python scripts/convert_tcx.py
+# 範例：將 tests/fixtures 中的 TCX 檔案轉換為 session bundle
+uv run garmin-tcx-ai bundle --input tests/fixtures --output data/processed/smoke_cli --write-coach-handoff
 ```
 
-目前預期行為是 exit code `0`，沒有輸出 artifacts。真正的 end-to-end
-TCX conversion CLI 尚未實作完成；現階段應以 pytest 驗證各模組行為。
+### 2. Streamlit 本機 UI 使用方式
+
+執行以下指令啟動本機網頁操作介面：
+
+```powershell
+uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
+```
 
 ## 模組層級操作範例
 
