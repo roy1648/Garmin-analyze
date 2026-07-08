@@ -399,3 +399,22 @@ Non-goals：
 - 不新增 dependencies。
 
 
+## Phase 21：Release Candidate Validation and Documentation
+
+目標：
+- 停止功能擴充。
+- 驗證目前 main 是否具備 local usable release 條件。
+- 補齊 release validation、known limitations、manual smoke test checklist。
+- 明確標示哪些是 release 內，哪些不是 release 內。
+
+完成條件：
+- 新增 release candidate validation 文件。
+- 新增 known limitations 文件。
+- README 更新目前 CLI / UI 使用方式。
+- 架構文件補上 release boundary。
+- 自動測試與 lint 狀態有紀錄。
+- Windows manual smoke test checklist 有列出。
+- 不修改核心 pipeline / CLI / parser / normalizer / exporter / session contract。
+
+
+

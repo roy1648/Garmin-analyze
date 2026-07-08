@@ -288,3 +288,14 @@ PR #9 與 MVP 不包含：
 - Planned workout matching。
 - Manual feedback input。
 - HR zone / time in zone。
+
+## 8. Release Candidate Boundary
+
+The current release candidate keeps a strict boundary:
+
+- `pipeline.run_bundle()` remains the shared execution use case.
+- CLI and UI both depend on the shared pipeline.
+- UI is a presentation / local operation layer.
+- UI helpers may validate paths, open folders, and support native picker convenience.
+- UI helpers must not replace parser, normalizer, exporter, session, or handoff logic.
+- Output contract remains owned by the pipeline and exporter/handoff modules.

@@ -16,6 +16,14 @@ data/samples/           # 本機測試資料目錄 (Git 忽略)
 data/processed/         # 本機轉換輸出目錄 (Git 忽略)
 ```
 
+## 快速開始 (Quick Start)
+
+```powershell
+uv sync
+uv run python -m pytest -q
+uv run python -m ruff check src tests --no-cache
+```
+
 ## 安裝與執行
 
 本專案支援 Python 3.12+，並建議使用 `uv` 進行環境管理。
@@ -71,7 +79,7 @@ uv run garmin-tcx-ai bundle `
   --write-coach-handoff
 ```
 
-## 本機 UI 介面
+## 本機 UI 介面 (Local UI Usage)
 
 啟動：
 
@@ -79,37 +87,29 @@ uv run garmin-tcx-ai bundle `
 uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
 ```
 
-使用流程：
+### 使用與功能說明
 
-1. 在 Input path 輸入單一 `.tcx` 檔案路徑，或包含 `.tcx` 的資料夾路徑。
-2. 也可使用「**選擇 TCX 檔案**」或「**選擇 TCX 資料夾**」按鈕透過本機視窗選擇路徑。
-3. UI 會即時檢查路徑是否存在，以及可偵測到幾個 TCX 檔案。
-4. 確認或重新產生 output folder；也可使用「**選擇輸出資料夾**」按鈕選擇目錄。
-5. 一般情況只需要保留預設參數。
-6. 需要時再展開「進階設定」調整 GPS policy、timezone、max gap minutes 或 atomic artifacts。
-7. 按下「開始轉換」。
-8. 轉換成功後，可在頁面最下方以完整寬度與長度預覽 `session_bundle.json`、`session_bundle.md` 與 `coach_handoff.md`。
+* **手動輸入路徑 (Manual input path)**：可手動在「Input path」欄位輸入單一 TCX 檔案或資料夾路徑。
+* **原生選取器按鈕 (Native picker buttons)**：可使用「選擇 TCX 檔案」或「選擇 TCX 資料夾」按鈕，透過本機 OS 視窗選取路徑。
+* **輸出資料夾選取 (Output folder selection)**：可透過「選擇輸出資料夾」按鈕選擇目錄，或使用「重新產生預設輸出資料夾」產生具備唯一 timestamp 的輸出路徑。
+* **進階設定 (Advanced settings)**：可展開「進階設定」調整 GPS Policy、時區 (Timezone)、Session 分組間隔門檻，以及是否輸出詳細除錯檔案 (Atomic Artifacts)。
+* **打開輸出資料夾按鈕 (Output folder open button)**：轉換成功後可點擊「打開輸出資料夾」按鈕，嘗試透過本機檔案總管開啟輸出目錄。
+* **複製與手動複製功能 (Copy/manual-copy)**：可直接點選「複製」按鈕複製產生的輸出內容全文，若瀏覽器權限限制，亦可透過「手動複製」展開區的純文字框進行複製。支援以下檔案：
+  - `session_bundle.json`
+  - `session_bundle.md`
+  - `coach_handoff.md`
+* **滿版預覽**：頁面下方以滿版寬度且完整長度顯示產生的三個輸出檔案內容。
 
-路徑輸入：
-- 可手動輸入 Input path。
-- 也可使用「選擇 TCX 檔案」或「選擇 TCX 資料夾」透過本機選取器選擇。
-- 可使用「選擇輸出資料夾」指定 output folder。
-- 若 native dialog 在環境中不可用，仍可手動輸入路徑。
+## Release Candidate Status
 
-輸出結果操作：
-- 可複製 `session_bundle.json` 全文。
-- 可複製 `session_bundle.md` 全文。
-- 可複製 `coach_handoff.md` 全文。
-- 若瀏覽器不允許自動複製，UI 會提示使用手動複製。
-- 可嘗試從 UI 打開輸出資料夾。
-- 若系統不允許自動打開資料夾，仍可複製頁面顯示的 output folder 路徑手動開啟。
-- 不提供 download buttons。
+This project is currently entering release-candidate validation.
 
-提示：
-- UI 僅在本機執行。
-- 不會上傳 Garmin 資料。
-- 輸出仍遵守既有 session bundle contract。
-- CLI 仍可繼續使用。
+Before treating the current main branch as a local usable release, run:
+- automated tests
+- ruff
+- CLI smoke test
+- Windows Streamlit UI smoke test
 
-
-
+See:
+- `docs/06_release_candidate_validation.md`
+- `docs/07_known_limitations.md`
