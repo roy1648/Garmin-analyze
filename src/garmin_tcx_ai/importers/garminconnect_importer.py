@@ -13,6 +13,8 @@ from pathlib import Path
 import re
 from typing import Any, Callable
 
+from garmin_tcx_ai.credentials import redact_sensitive_text
+
 
 @dataclass(frozen=True)
 class GarminConnectImportConfig:
@@ -206,6 +208,7 @@ def download_tcx_activities(
             try:
                 password = password_provider(email)
             except Exception as exc:
+                safe_msg = redact_sensitive_text(str(exc))
                 return GarminConnectImportResult(
                     success=False,
                     downloaded_count=0,
@@ -214,7 +217,7 @@ def download_tcx_activities(
                     download_dir=download_dir,
                     tcx_paths=[],
                     warning_messages=[],
-                    error_message=f"Error obtaining password from provider: {exc}",
+                    error_message=f"Error obtaining password from provider: {safe_msg}",
                 )
         else:
             password = getpass.getpass("Garmin password: ")

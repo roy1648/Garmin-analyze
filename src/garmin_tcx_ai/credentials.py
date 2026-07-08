@@ -24,6 +24,7 @@ class CredentialStatus:
     available: bool
     has_password: bool
     message: str
+    success: bool
 
 
 def redact_sensitive_text(text: str) -> str:
@@ -100,12 +101,14 @@ def set_stored_password(email: str, password: str) -> CredentialStatus:
             available=False,
             has_password=False,
             message="錯誤：未安裝 'keyring' 套件。請以 optional dependency 安裝。",
+            success=False,
         )
     if not password:
         return CredentialStatus(
             available=True,
             has_password=False,
             message="錯誤：密碼不能為空。",
+            success=False,
         )
     try:
         keyring.set_password(SERVICE_NAME, email, password)  # type: ignore
@@ -113,6 +116,7 @@ def set_stored_password(email: str, password: str) -> CredentialStatus:
             available=True,
             has_password=True,
             message="已成功儲存密碼到系統認證管理員。",
+            success=True,
         )
     except Exception as exc:
         safe_msg = redact_sensitive_text(str(exc))
@@ -120,6 +124,7 @@ def set_stored_password(email: str, password: str) -> CredentialStatus:
             available=True,
             has_password=False,
             message=f"儲存密碼失敗：無法存取系統金鑰庫 ({safe_msg})。",
+            success=False,
         )
 
 
@@ -138,6 +143,7 @@ def delete_stored_password(email: str) -> CredentialStatus:
             available=False,
             has_password=False,
             message="錯誤：未安裝 'keyring' 套件。請以 optional dependency 安裝。",
+            success=False,
         )
     try:
         keyring.delete_password(SERVICE_NAME, email)  # type: ignore
@@ -145,6 +151,7 @@ def delete_stored_password(email: str) -> CredentialStatus:
             available=True,
             has_password=False,
             message="已從系統認證管理員中刪除密碼。",
+            success=True,
         )
     except Exception as exc:
         safe_msg = redact_sensitive_text(str(exc))
@@ -152,6 +159,7 @@ def delete_stored_password(email: str) -> CredentialStatus:
             available=True,
             has_password=False,
             message=f"刪除失敗或密碼不存在：{safe_msg}。",
+            success=False,
         )
 
 
@@ -170,6 +178,7 @@ def inspect_stored_password(email: str) -> CredentialStatus:
             available=False,
             has_password=False,
             message="錯誤：未安裝 'keyring' 套件。請以 optional dependency 安裝。",
+            success=False,
         )
     try:
         pwd = keyring.get_password(SERVICE_NAME, email)  # type: ignore
@@ -178,11 +187,13 @@ def inspect_stored_password(email: str) -> CredentialStatus:
                 available=True,
                 has_password=True,
                 message="系統認證管理員中已存在此帳號的密碼。",
+                success=True,
             )
         return CredentialStatus(
             available=True,
             has_password=False,
             message="系統認證管理員中未儲存此帳號的密碼。",
+            success=True,
         )
     except Exception as exc:
         safe_msg = redact_sensitive_text(str(exc))
@@ -190,4 +201,5 @@ def inspect_stored_password(email: str) -> CredentialStatus:
             available=True,
             has_password=False,
             message=f"檢查儲存狀態失敗：{safe_msg}。",
+            success=False,
         )

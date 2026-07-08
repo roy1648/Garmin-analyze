@@ -278,8 +278,16 @@ def main() -> None:
 
             has_stored = False
             stored_pwd = None
-            if garmin_email.strip():
-                stored_pwd = get_stored_password(garmin_email.strip())
+            email_key = garmin_email.strip()
+            if email_key:
+                # Only hit the OS keyring when the email actually changes,
+                # instead of on every rerun (e.g. every keystroke).
+                if st.session_state.get("_stored_pwd_cache_email") != email_key:
+                    st.session_state._stored_pwd_cache_email = email_key
+                    st.session_state._stored_pwd_cache_value = get_stored_password(
+                        email_key
+                    )
+                stored_pwd = st.session_state._stored_pwd_cache_value
                 has_stored = stored_pwd is not None
 
             pw_key = f"garmin_password_raw_{st.session_state.pwd_counter}"
@@ -308,12 +316,12 @@ def main() -> None:
                     st.error("請輸入 Garmin Connect email 以進行刪除。")
                 else:
                     del_status = delete_stored_password(garmin_email.strip())
-                    if not del_status.available:
-                        st.error(del_status.message)
-                    elif del_status.has_password:
-                        st.error(del_status.message)
-                    else:
+                    if del_status.success:
+                        st.session_state.pop("_stored_pwd_cache_email", None)
+                        st.session_state.pop("_stored_pwd_cache_value", None)
                         st.success(del_status.message)
+                    else:
+                        st.error(del_status.message)
 
             col_start, col_end = st.columns(2)
             with col_start:
@@ -537,6 +545,8 @@ def main() -> None:
                     st.error("無法執行：請輸入 Garmin Connect email。")
                 elif not effective_password:
                     st.error("無法執行：請輸入密碼或啟用已儲存的密碼。")
+                elif not download_dir_str.strip():
+                    st.error("無法執行：請填寫下載儲存資料夾。")
                 else:
                     date_status = validate_garmin_date_range(start_date, end_date)
                     if not date_status.is_valid:
@@ -544,14 +554,6 @@ def main() -> None:
                     else:
                         # Clear old status messages
                         st.session_state.pop("import_status_msg", None)
-
-                        # Optional save password to keyring
-                        if remember_password and effective_password:
-                            save_status = set_stored_password(garmin_email.strip(), effective_password)
-                            if save_status.has_password:
-                                st.session_state.import_status_msg = ("info", "密碼已儲存到系統認證管理員。")
-                            else:
-                                st.session_state.import_status_msg = ("warning", f"密碼無法儲存，將只用於本次執行：{save_status.message}")
 
                         # Download
                         import_config = GarminConnectImportConfig(
@@ -567,6 +569,17 @@ def main() -> None:
 
                         with st.spinner("從 Garmin Connect 下載 TCX 檔案中..."):
                             import_result = download_tcx_activities(import_config)
+
+                        # Only persist the password once login/download has
+                        # actually succeeded, so a typo never gets saved.
+                        if import_result.success and remember_password and effective_password:
+                            save_status = set_stored_password(garmin_email.strip(), effective_password)
+                            if save_status.success:
+                                st.session_state._stored_pwd_cache_email = garmin_email.strip()
+                                st.session_state._stored_pwd_cache_value = effective_password
+                                st.session_state.import_status_msg = ("info", "密碼已儲存到系統認證管理員。")
+                            else:
+                                st.session_state.import_status_msg = ("warning", f"密碼無法儲存，將只用於本次執行：{save_status.message}")
 
                         # Increment counter and remove old password key from session state
                         old_key = f"garmin_password_raw_{st.session_state.pwd_counter}"
@@ -746,10 +759,14 @@ def main() -> None:
                     else:
                         st.write("未產生")
 
-    # Security: Scrub password keys from session state
+    # Security: Scrub password keys from session state. The current
+    # widget key is kept only while the Garmin Connect form is active and
+    # in use, so the raw password does not linger once the user switches
+    # away from Garmin Connect mode.
     current_pw_key = f"garmin_password_raw_{st.session_state.get('pwd_counter', 0)}"
+    keep_current = source_mode == "Garmin Connect 下載"
     for k in list(st.session_state.keys()):
-        if "password" in k.lower() and k != current_pw_key:
+        if "password" in k.lower() and not (keep_current and k == current_pw_key):
             st.session_state.pop(k, None)
 
 
