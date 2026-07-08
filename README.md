@@ -100,6 +100,33 @@ uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
   - `coach_handoff.md`
 * **滿版預覽**：頁面下方以滿版寬度且完整長度顯示產生的三個輸出檔案內容。
 
+## Windows Local Launcher
+
+For Windows local usage, start the UI with:
+
+```cmd
+scripts\run_ui.cmd
+```
+
+This script:
+
+* checks that `uv` is available
+* runs `uv sync`
+* starts the Streamlit Local UI
+* does not use system Python directly
+* does not create an EXE
+
+For validation:
+
+```cmd
+scripts\run_validation.cmd
+scripts\run_cli_smoke.cmd
+```
+
+EXE packaging is not included yet. See:
+
+* `docs/08_windows_launcher_and_packaging_readiness.md`
+
 ## Release Candidate Status
 
 This project is currently entering release-candidate validation.

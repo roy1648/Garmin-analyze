@@ -95,6 +95,24 @@ Manual checklist:
 - [ ] GPS policy `keep` warning appears when selected.
 - [ ] No private Garmin data is committed.
 
+## Windows launcher validation
+
+Commands:
+
+```cmd
+scripts\run_validation.cmd
+scripts\run_cli_smoke.cmd
+scripts\run_ui.cmd
+```
+
+Checklist:
+
+* [ ] `scripts\run_validation.cmd` passes.
+* [ ] `scripts\run_cli_smoke.cmd` produces expected output files.
+* [ ] `scripts\run_ui.cmd` starts Streamlit UI.
+* [ ] UI still launches without deprecated Streamlit component warning.
+* [ ] No generated files are committed.
+
 ## Release Candidate Decision
 
 Current decision: Pending manual Windows smoke test.
