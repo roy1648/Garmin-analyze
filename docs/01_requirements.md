@@ -1,5 +1,10 @@
 # 需求
 
+> [!NOTE]
+> 本文件為 MVP requirements 的歷史基準文件。
+> PR16–20 已由使用者明確批准 Local-only Streamlit UI 作為 post-MVP local usability layer。
+> 這不代表 cloud-based Web UI、資料庫、Garmin API、AI API upload 或完整 AI coaching platform 進入範圍。
+
 ## 1. 功能需求
 
 ### 1.1 TCX 輸入
