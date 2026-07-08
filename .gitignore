@@ -10,6 +10,7 @@ env/
 
 # Test, lint, and type-check caches
 .pytest_cache/
+.pytest-tmp*/
 .ruff_cache/
 .mypy_cache/
 .coverage
@@ -19,6 +20,9 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+*.spec.tmp
+*.exe
+.packaging-logs/
 
 # Local secrets and machine-specific config
 .env

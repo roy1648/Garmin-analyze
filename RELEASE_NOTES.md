@@ -19,9 +19,12 @@
   - `scripts/run_cli_smoke.cmd`
   - `scripts/run_validation.cmd`
 - Packaging readiness documentation.
+- Windows EXE Packaging Kit (spec files and build/smoke/clean scripts).
 
 ### Not included
 
+- Committed binary executables (*.exe or dist/ folders in git).
+- Installer.
 - Garmin Connect API.
 - Cloud sync.
 - Login.
@@ -31,10 +34,6 @@
 - Medical interpretation.
 - HR / Garmin zone inference.
 - Planned workout matching.
-- Standalone EXE.
-- Installer.
-- PyInstaller packaging.
-- EXE packaging.
 
 ### Required validation before release
 
