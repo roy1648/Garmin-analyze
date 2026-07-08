@@ -39,6 +39,9 @@ data/processed/
 data/samples/
 *.tcx
 !tests/fixtures/**/*.tcx
+*.fit
+*.gpx
+*.kml
 
 # Logs
 *.log

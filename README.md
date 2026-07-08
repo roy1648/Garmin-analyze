@@ -192,7 +192,7 @@ scripts\run_cli_smoke.cmd
 ```
 
 EXE packaging is supported via a manual local compilation kit. See:
-- [docs/09_windows_exe_packaging.md](file:///d:/01-Git%20code/10-garmin%20project/docs/09_windows_exe_packaging.md)
+- [docs/09_windows_exe_packaging.md](docs/09_windows_exe_packaging.md)
 
 Manual build, smoke test, and cleanup scripts are located at:
 - `scripts\build_exe.manual.cmd`
@@ -215,7 +215,7 @@ Manual build, smoke test, and cleanup scripts are located at:
   - Do NOT commit generated binaries (`dist/`, `build/`, `release-artifacts/`, `*.exe`, `*.zip`) or private Garmin data (`data/raw/`, `data/processed/`, `*.tcx`).
 
 For the complete final release steps, manual validation guidelines, and packaging details, please refer to:
-- [docs/10_final_release_checklist.md](file:///d:/01-Git%20code/10-garmin%20project/docs/10_final_release_checklist.md)
-- [docs/06_release_candidate_validation.md](file:///d:/01-Git%20code/10-garmin%20project/docs/06_release_candidate_validation.md)
-- [docs/07_known_limitations.md](file:///d:/01-Git%20code/10-garmin%20project/docs/07_known_limitations.md)
-- [docs/09_windows_exe_packaging.md](file:///d:/01-Git%20code/10-garmin%20project/docs/09_windows_exe_packaging.md)
+- [docs/10_final_release_checklist.md](docs/10_final_release_checklist.md)
+- [docs/06_release_candidate_validation.md](docs/06_release_candidate_validation.md)
+- [docs/07_known_limitations.md](docs/07_known_limitations.md)
+- [docs/09_windows_exe_packaging.md](docs/09_windows_exe_packaging.md)
