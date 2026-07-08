@@ -1,5 +1,10 @@
 # MVP Freeze Definition
 
+> [!NOTE]
+> This document serves as the historical baseline for the MVP freeze (locked on 2026-06-27).
+> Since PR #16, a Local Streamlit UI has been explicitly approved as a post-MVP exception to the Web UI constraint.
+> Other MVP non-goals (e.g. cloud dashboard, database storage, Garmin API login, cloud sync, etc.) remain strictly out of scope.
+
 **Date:** 2026-06-27  
 **Status:** Locked for implementation  
 **Next review:** After MVP completion or explicit scope change request

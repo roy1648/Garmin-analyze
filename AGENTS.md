@@ -43,6 +43,8 @@ If behavior or data contracts are unclear, read `docs/` before editing.
 - MVP focuses on manually exported Garmin Connect Running TCX files.
 - Do not add Web UI, database storage, Garmin API login, or cloud sync
   unless the user explicitly changes scope.
+  - Approved Exception: Local-only Streamlit UI is allowed as a post-MVP usability layer.
+  - Cloud dashboard, database, Garmin API login/sync, AI API upload, and AI coaching platform remain out of scope.
 - GarminDB and python-garminconnect may be discussed in docs or roadmap,
   but must not be added as dependencies during MVP work.
 - Do not build a full AI coaching platform in MVP.

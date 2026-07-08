@@ -63,6 +63,12 @@ def test_default_output_dir_uses_data_processed_prefix(tmp_path: Path) -> None:
     assert res_default.name.startswith("ui_run_")
 
 
+def test_default_output_dir_uniqueness_rapid_calls() -> None:
+    """Test that consecutive rapid calls to default_output_dir generate unique paths."""
+    paths = [default_output_dir() for _ in range(100)]
+    assert len(set(paths)) == 100
+
+
 def test_inspect_input_path_empty() -> None:
     """Test inspect_input_path with empty inputs."""
     res = inspect_input_path("")

@@ -1,8 +1,10 @@
 # 架構
 
 本專案是個人 Garmin Connect TCX ETL 與 factual analysis 工具。MVP
-範圍限定為手動匯出的 Running TCX，不包含 Web UI、database、Garmin API
+範圍限定為手動匯出的 Running TCX，且不包含 cloud-based Web UI、database、Garmin API
 login、AI API upload 或完整 AI coaching platform。
+注意：本機 Streamlit UI (Local Streamlit UI) 是 PR16-20 使用者批准的 post-MVP local usability layer，
+不屬於雲端 Web UI。
 
 ## 1. Artifact Layers
 
@@ -279,7 +281,7 @@ PR #9 與 MVP 不包含：
 - Garmin API。
 - GarminDB。
 - Database / SQLite。
-- Web UI。
+- Cloud Web UI (雲端 Web UI，注意：本機 Local Streamlit UI 為例外已於 PR16-20 加入)。
 - Cloud sync。
 - OpenAI、Claude、Gemini 或 NotebookLM API upload。
 - AI coaching platform。
