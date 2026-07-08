@@ -417,4 +417,25 @@ Non-goals：
 - 不修改核心 pipeline / CLI / parser / normalizer / exporter / session contract。
 
 
+## Phase 24：Windows Local Launcher and Packaging Readiness
+
+目標：
+- 在正式 EXE 打包前，建立 Windows 本機啟動流程。
+- 讓使用者不需要每次手動輸入長指令。
+- 保持 `uv` 管理 Python 環境，不使用系統 Python。
+- 補齊 packaging readiness 文件。
+
+完成條件：
+- 新增 `scripts/run_ui.cmd`。
+- 新增 `scripts/run_cli_smoke.cmd`。
+- 新增 `scripts/run_validation.cmd`。
+- 新增 scripts 說明文件。
+- 新增 Windows launcher / packaging readiness 文件。
+- README 補上 Windows launcher 使用方式。
+- 不建立 EXE。
+- 不新增 dependency。
+- 不修改 production code。
+
+
+
 

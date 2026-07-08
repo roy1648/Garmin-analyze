@@ -14,6 +14,11 @@
 - Native local path picker.
 - Output folder open action.
 - Copy/manual-copy actions for generated outputs.
+- Windows launcher scripts:
+  - `scripts/run_ui.cmd`
+  - `scripts/run_cli_smoke.cmd`
+  - `scripts/run_validation.cmd`
+- Packaging readiness documentation.
 
 ### Not included
 
@@ -26,6 +31,9 @@
 - Medical interpretation.
 - HR / Garmin zone inference.
 - Planned workout matching.
+- Standalone EXE.
+- Installer.
+- PyInstaller packaging.
 - EXE packaging.
 
 ### Required validation before release
