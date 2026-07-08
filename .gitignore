@@ -22,7 +22,10 @@ dist/
 *.egg-info/
 *.spec.tmp
 *.exe
+*.zip
 .packaging-logs/
+release-artifacts/
+
 
 # Local secrets and machine-specific config
 .env

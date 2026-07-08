@@ -199,16 +199,23 @@ Manual build, smoke test, and cleanup scripts are located at:
 - `scripts\smoke_exe.manual.cmd`
 - `scripts\clean_packaging_artifacts.cmd`
 
-## Release Candidate Status
+## Release, Packaging & License
 
-This project is currently entering release-candidate validation.
+- **Current local release version**: v0.1.0
+- **Author**: Jia-Long Chen
+- **GitHub**: roy1648
+- **License**: MIT
+- **Copyright**: Copyright (c) 2026 Jia-Long Chen
+- **Windows EXE Distribution**: Packaged as a folder-based (`onedir`) ZIP artifact.
+- **Local Compilation**:
+  - Build locally with `scripts\build_exe.manual.cmd`
+  - Smoke test with `scripts\smoke_exe.manual.cmd`
+- **Data Safety**:
+  - Real Garmin login and credential validation are manual and local-only.
+  - Do NOT commit generated binaries (`dist/`, `build/`, `release-artifacts/`, `*.exe`, `*.zip`) or private Garmin data (`data/raw/`, `data/processed/`, `*.tcx`).
 
-Before treating the current main branch as a local usable release, run:
-- automated tests
-- ruff
-- CLI smoke test
-- Windows Streamlit UI smoke test
-
-See:
-- `docs/06_release_candidate_validation.md`
-- `docs/07_known_limitations.md`
+For the complete final release steps, manual validation guidelines, and packaging details, please refer to:
+- [docs/10_final_release_checklist.md](file:///d:/01-Git%20code/10-garmin%20project/docs/10_final_release_checklist.md)
+- [docs/06_release_candidate_validation.md](file:///d:/01-Git%20code/10-garmin%20project/docs/06_release_candidate_validation.md)
+- [docs/07_known_limitations.md](file:///d:/01-Git%20code/10-garmin%20project/docs/07_known_limitations.md)
+- [docs/09_windows_exe_packaging.md](file:///d:/01-Git%20code/10-garmin%20project/docs/09_windows_exe_packaging.md)
