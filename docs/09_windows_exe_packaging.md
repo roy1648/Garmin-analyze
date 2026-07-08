@@ -6,13 +6,16 @@ This document describes how to manually build Windows EXE bundles for:
 - CLI: `garmin-tcx-ai.exe`
 - Local UI: `garmin-tcx-ai-ui.exe`
 
+Currently, the EXE packaging target supports the `garminconnect` optional UI/CLI dependencies (including `curl_cffi` and `keyring`).
+
 ## Current strategy
 
 - Use PyInstaller.
-- Use onedir first.
-- Keep console enabled for first packaging spike.
-- Do not create installer yet.
+- Use `onedir` distribution (onefile is still deferred).
+- Keep console enabled.
+- Do not create installer yet (installer is deferred).
 - Do not commit `dist/`, `build/`, `.exe`, or packaging logs.
+- The build script (`scripts\build_exe.manual.cmd`) syncs dependencies using `uv sync --extra garminconnect` and packages with PyInstaller containing all optional features.
 
 ## Why human-run build
 
@@ -33,6 +36,8 @@ scripts\build_exe.manual.cmd
 ```cmd
 scripts\smoke_exe.manual.cmd
 ```
+
+The smoke test validates basic CLI help commands (including `import-garminconnect --help`) and does NOT make real network requests to Garmin Connect.
 
 ## Clean
 
@@ -63,10 +68,12 @@ If build fails:
 * first clear ERROR block if visible
 * do not paste full log
 
-## Known risks
+## Manual Verification Safety Boundaries
 
-* Streamlit packaging may require additional data files or hidden imports.
-* UI EXE may need onedir distribution.
-* Onefile is intentionally deferred.
-* Browser/port behavior must be manually verified.
-* Native file picker must be manually verified in packaged UI.
+* **No Automated Real Logins**: Real Garmin Connect logins and Windows Credential Manager keyring storage are **never** executed in automated smoke tests or CI.
+* **Manual UI Integration Test**: Real login integration and keyring retrieval should be manually verified by the user locally:
+  1. Launch the UI EXE `dist\garmin-tcx-ai-ui\garmin-tcx-ai-ui.exe`.
+  2. Switch data source to "Garmin Connect 下載".
+  3. Verify email/password/keyring UI elements are visible.
+  4. Perform an optional real login/download check.
+* **Onefile and Installer**: Standalone onefile packaging and installers remain deferred. Do not commit build results.

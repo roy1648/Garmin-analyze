@@ -16,10 +16,10 @@ This release candidate covers:
 
 ## Explicit Non-goals
 
-- Garmin Connect API integration.
+- Official Garmin Developer Program API (local-only unofficial importer is supported).
 - Cloud sync.
 - Database storage.
-- User login.
+- Real Garmin Connect login/authentication in CI (local manual login only).
 - Charts / visualization.
 - AI coaching.
 - Medical interpretation.
@@ -27,7 +27,8 @@ This release candidate covers:
 - Garmin zone inference.
 - Planned workout matching.
 - 課表角色推論.
-- EXE packaging.
+- Standalone onefile EXE (onedir is supported).
+- Desktop Installer.
 - File upload / drag-and-drop.
 
 ## Automated validation

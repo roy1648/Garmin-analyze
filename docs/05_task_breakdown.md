@@ -524,3 +524,26 @@ Non-goals：
 - 不進行 Web UI / 雲端部署。
 - 不在 CI 跑真實 Garmin API 或 Windows Credential Manager 寫入測試。
 - 不修改核心輸出契約。
+
+## Phase 28：EXE Packaging Convergence for Garmin Connect Optional UI (PR #28)
+
+目標：
+
+- 收斂 Windows EXE packaging 套件，使其與最新 main 整合的 Garmin Connect / keyring 相關功能狀態一致。
+- 支援將 optional dependencies (garminconnect, curl_cffi, keyring) 打包進 CLI EXE 與 UI EXE。
+
+完成條件：
+
+- `scripts/build_exe.manual.cmd` 更新為使用 `uv sync --extra garminconnect` 及帶有 `--extra garminconnect` 參數的 PyInstaller 執行指令。
+- `packaging/garmin-tcx-ai-cli.spec` 與 `packaging/garmin-tcx-ai-ui.spec` 補齊 `garminconnect`、`curl_cffi`、`keyring` 以及 `keyring.backends` / `keyring.backends.Windows` 相關的 hidden imports 與 datas / binaries 收集邏輯。
+- `scripts/smoke_exe.manual.cmd` 補上 `garmin-tcx-ai.exe --help` 與 `garmin-tcx-ai.exe import-garminconnect --help` 指令驗證，且指令不觸發真實登入或要求輸入。
+- `scripts/smoke_exe.manual.cmd` 更新 UI 人工驗收步驟，列出資料來源切換、輸入欄位檢視、keyring 功能等手動驗收指示。
+- `docs/09_windows_exe_packaging.md` 說明文件同步更新。
+- 全數自動化測試與 linting 通過，無新增 CI 真實 Garmin 登入或 Credential 寫入測試。
+
+非目標：
+
+- 不建立 installer。
+- 不支援 onefile EXE（仍維持 onedir 結構）。
+- 不把 raw Garmin 資料、token、credential 打包或 commit。
+- 不新增任何 UI 頁面或 CLI 命令。

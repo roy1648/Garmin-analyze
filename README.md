@@ -166,7 +166,7 @@ uv run --with garminconnect --with curl_cffi garmin-tcx-ai import-garminconnect 
 - Garmin token、credentials、`.env`、`~/.garminconnect` 與任何私人活動資料
   不可 commit。
 - 下載的 TCX 會落在 `data/raw/` 底下，該路徑已由 `.gitignore` 忽略。
-- Garmin Connect importer 是 optional CLI 與 UI feature；在 UI 模式中，支援藉由系統金鑰庫 (Windows Credential Manager) 安全儲存密碼。Windows EXE packaging kit 不包含 Garmin Connect login flow。
+- Garmin Connect importer 是 optional CLI 與 UI feature；在 UI 模式中，支援藉由系統金鑰庫 (Windows Credential Manager) 安全儲存密碼。Windows EXE packaging kit 已支援將 Garmin Connect 相關 optional dependencies (包含登入與密碼管理機制) 打包進 EXE 檔。
 
 ## Windows Local Launcher
 

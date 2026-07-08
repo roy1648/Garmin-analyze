@@ -15,6 +15,23 @@ if not exist "%CLI_EXE%" (
     exit /b 1
 )
 
+:: 1b. Check CLI help commands (which must not trigger logins or request credentials)
+echo [INFO] Verifying CLI EXE --help...
+"%CLI_EXE%" --help > nul
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] CLI EXE --help failed with exit code %ERRORLEVEL%.
+    exit /b %ERRORLEVEL%
+)
+echo [INFO] CLI EXE --help passed.
+
+echo [INFO] Verifying CLI EXE import-garminconnect --help...
+"%CLI_EXE%" import-garminconnect --help > nul
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] CLI EXE import-garminconnect --help failed with exit code %ERRORLEVEL%.
+    exit /b %ERRORLEVEL%
+)
+echo [INFO] CLI EXE import-garminconnect --help passed.
+
 :: 2. Clean up previous smoke outputs
 if exist data\processed\exe_cli_smoke rd /s /q data\processed\exe_cli_smoke
 
@@ -75,13 +92,32 @@ if not exist "%UI_EXE%" (
     echo    - A browser window opens automatically or you can navigate to http://localhost:8501.
     echo.
     echo 3. In the Web UI:
+    echo    - Verify that "資料來源" (Data Source Selection) appears at the top.
+    echo    - Verify that you can switch between "本機 TCX 檔案 / 資料夾" and "Garmin Connect 下載".
+    echo    - Switch to "Garmin Connect 下載" and verify you can see the following fields:
+    echo      * Email
+    echo      * Password (密碼)
+    echo      * Date Range (活動下載日期範圍)
+    echo      * Activity Type (下載活動類型)
+    echo      * Download Folder (下載暫存路徑)
+    echo      * Optional: "將密碼儲存到 Windows Credential Manager" checkbox
+    echo    - Switch back to "本機 TCX 檔案 / 資料夾".
     echo    - Click the native path picker button and select "tests\fixtures\minimal_running.tcx"
     echo    - Keep the default output directory or set a custom one.
-    echo    - Click "Run Conversion".
-    echo    - Verify the "Open Output Folder" action works.
+    echo    - Click "Run Conversion" (開始轉換).
+    echo    - Verify the "Open Output Folder" (打開輸出資料夾) action works.
     echo    - Check the rendered markdown outputs and try copy / manual-copy buttons.
     echo.
-    echo 4. Close the command prompt window containing the running UI to stop the server.
+    echo 4. Optional Manual Garmin Connect Integration Verification:
+    echo    - Switch to "Garmin Connect 下載" mode.
+    echo    - Enter your real Garmin Email and Password.
+    echo    - Select a short date range (e.g. last 7 days).
+    echo    - Check "將密碼儲存到 Windows Credential Manager".
+    echo    - Click "Download and Convert" (開始下載與轉換) and verify it succeeds.
+    echo    - Close and restart the UI EXE, verify you can use the stored password by
+    echo      selecting "使用已儲存密碼".
+    echo.
+    echo 5. Close the command prompt window containing the running UI to stop the server.
     echo -----------------------------------------------------------
 )
 echo.

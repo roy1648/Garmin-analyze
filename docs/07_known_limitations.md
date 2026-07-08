@@ -3,9 +3,9 @@
 ## Current intended limits
 
 - Local-only tool.
-- No Garmin Connect API.
+- No official Garmin Developer Program API (local unofficial import is supported).
 - No cloud sync.
-- No login.
+- No automated/server-side login (local manual user login only).
 - No database.
 - No charts.
 - No AI coaching.
@@ -14,7 +14,7 @@
 - No Garmin zone inference.
 - No planned workout matching.
 - No 課表角色推論.
-- No EXE packaging yet.
+- No standalone onefile EXE / desktop installer (onedir EXE packaging is supported).
 
 ## Data and privacy
 
@@ -30,7 +30,7 @@
 - If native picker fails, manual path input remains the fallback.
 - Clipboard copy may depend on browser permission.
 - Manual copy fallback is provided where needed.
-- Streamlit UI is local development / local operator UI, not a packaged desktop app.
+- Streamlit UI can be run via Python or as a packaged `onedir` EXE.
 
 ## Platform limitations
 
