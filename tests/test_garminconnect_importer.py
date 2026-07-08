@@ -175,6 +175,25 @@ def test_single_download_failure_warns_and_continues(tmp_path: Path) -> None:
     assert "501" in result.warning_messages[0]
 
 
+def test_empty_tcx_download_is_failed_without_writing_file(
+    tmp_path: Path,
+) -> None:
+    """Empty downloaded TCX content is treated as a failed activity."""
+    _FakeGarmin.activities = [
+        {"activityId": 503, "startTimeLocal": "2026-07-05 08:30:00"}
+    ]
+    _FakeGarmin.downloads = {"503": b"  \n\t"}
+
+    result = download_tcx_activities(_config(tmp_path))
+
+    assert result.success is False
+    assert result.downloaded_count == 0
+    assert result.failed_count == 1
+    assert result.tcx_paths == []
+    assert "Downloaded TCX content is empty" in result.warning_messages[0]
+    assert not list(tmp_path.glob("*.tcx"))
+
+
 def test_download_failure_warning_redacts_sensitive_text(
     tmp_path: Path,
 ) -> None:
@@ -192,6 +211,28 @@ def test_download_failure_warning_redacts_sensitive_text(
     assert "abc123" not in result.warning_messages[0]
     assert "secret" not in result.warning_messages[0]
     assert "[REDACTED]" in result.warning_messages[0]
+
+
+def test_non_positive_limit_returns_error_without_login(
+    tmp_path: Path,
+) -> None:
+    """Importer rejects non-positive limits before creating a client."""
+    result = download_tcx_activities(
+        GarminConnectImportConfig(
+            start_date="2026-07-01",
+            end_date="2026-07-08",
+            download_dir=tmp_path,
+            email="runner@example.test",
+            limit=0,
+        )
+    )
+
+    assert result.success is False
+    assert result.error_message == "Error: limit must be a positive integer."
+    assert result.downloaded_count == 0
+    assert result.skipped_count == 0
+    assert result.failed_count == 0
+    assert _FakeGarmin.instances == []
 
 
 def test_all_downloads_fail_returns_success_false(tmp_path: Path) -> None:

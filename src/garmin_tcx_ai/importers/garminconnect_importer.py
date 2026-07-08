@@ -167,6 +167,18 @@ def download_tcx_activities(
     failed_count = 0
     download_dir = Path(config.download_dir)
 
+    if config.limit is not None and config.limit <= 0:
+        return GarminConnectImportResult(
+            success=False,
+            downloaded_count=0,
+            skipped_count=0,
+            failed_count=0,
+            download_dir=download_dir,
+            tcx_paths=[],
+            warning_messages=[],
+            error_message="Error: limit must be a positive integer.",
+        )
+
     try:
         garmin_cls = _load_garmin_class()
     except GarminConnectDependencyError as exc:
@@ -244,7 +256,10 @@ def download_tcx_activities(
 
         try:
             downloaded = client.download_activity(activity_id, tcx_format)
-            target.write_bytes(_tcx_bytes(downloaded))
+            tcx_content = _tcx_bytes(downloaded)
+            if not tcx_content.strip():
+                raise ValueError("Downloaded TCX content is empty")
+            target.write_bytes(tcx_content)
             downloaded_count += 1
             tcx_paths.append(target)
         except Exception as exc:
