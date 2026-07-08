@@ -135,7 +135,7 @@ def default_output_dir(base_dir: Path | None = None) -> Path:
     with _default_dir_lock:
         _default_dir_counter += 1
         cnt = _default_dir_counter
-    timestamp = now.strftime("%Y%m%d_%H%M%S_%f")
+    timestamp = now.strftime("%Y%m%d_%H%M%S")
     return root / f"ui_run_{timestamp}_{cnt}"
 
 
