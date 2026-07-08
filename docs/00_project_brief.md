@@ -1,5 +1,10 @@
 # 專案簡介：Garmin TCX AI-ready Converter
 
+> [!NOTE]
+> 本文件為 MVP Freeze 的歷史基準文件 (historical baseline)。
+> 專案在 PR16-20 已獲得使用者批准 Local-only Streamlit UI 例外作為 post-MVP local usability layer。
+> 雲端 Web UI、資料庫、Garmin API 登入等其他非目標依然在範疇之外。
+
 ## 1. 專案目標
 
 建立一個小型、個人使用的 Python 工具，將 Garmin Connect 匯出的

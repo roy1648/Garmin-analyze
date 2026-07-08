@@ -438,7 +438,7 @@ def main() -> None:
                     read_output_text(res.session_bundle_markdown_path),
                     f"session_bundle_markdown_{run_key}",
                 )
-                if write_coach_handoff and res.coach_handoff_markdown_path is not None:
+                if res.coach_handoff_markdown_path is not None:
                     render_copy_button_or_text_area(
                         "複製 coach_handoff.md",
                         read_output_text(res.coach_handoff_markdown_path),
@@ -474,10 +474,7 @@ def main() -> None:
             sb_md_text = read_output_text(res.session_bundle_markdown_path)
             
             tab_names = ["session_bundle.json", "session_bundle.md"]
-            has_handoff = (
-                write_coach_handoff 
-                and res.coach_handoff_markdown_path is not None
-            )
+            has_handoff = res.coach_handoff_markdown_path is not None
             if has_handoff:
                 tab_names.append("coach_handoff.md")
                 ch_md_text = read_output_text(res.coach_handoff_markdown_path)
