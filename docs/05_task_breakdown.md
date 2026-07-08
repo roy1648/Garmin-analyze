@@ -462,3 +462,36 @@ Non-goals：
 
 
 
+## Phase 26：Local Garmin Connect TCX Importer
+
+目標：
+
+- 新增 local-only optional CLI workflow：
+  `Garmin Connect -> local TCX download folder -> pipeline.run_bundle()`。
+- 使用 `python-garminconnect` 下載 TCX，但只放在 optional dependency group。
+- 下載資料預設落在 `data/raw/garminconnect/`，再由既有 pipeline 輸出
+  `session_bundle` 與可選的 `coach_handoff`。
+
+完成條件：
+
+- `pyproject.toml` 提供 `garminconnect` optional dependency group。
+- 新增 `src/garmin_tcx_ai/importers/garminconnect_importer.py`。
+- CLI 新增 `garmin-tcx-ai import-garminconnect` 子命令。
+- 未安裝 optional dependency 時，core CLI 與 tests 不受影響；使用 importer 時給
+  清楚安裝提示。
+- Importer unit tests 使用 fake client，不呼叫真實 Garmin Connect API。
+- CLI tests 驗證 importer 成功、importer 失敗、pipeline 失敗與既有 `bundle`
+  行為。
+- README 與 architecture docs 說明 local importer 的使用方式與安全邊界。
+
+Non-goals：
+
+- 不新增 Streamlit Garmin 登入 UI。
+- 不新增 background scheduler。
+- 不新增 database / SQLite / Grafana / InfluxDB。
+- 不使用 official Garmin Developer Program API。
+- 不新增 cloud sync、AI API upload、AI coaching 或 medical interpretation。
+- 不解讀 HR zone / Garmin zone。
+- 不做 planned workout matching 或 workout role inference。
+- 不把 Garmin Connect dependency 打進 Windows EXE packaging kit。
+- 不在 CI 跑真實 Garmin API integration tests。

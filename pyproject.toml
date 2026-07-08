@@ -12,6 +12,12 @@ dependencies = [
     "streamlit>=1.56",
 ]
 
+[project.optional-dependencies]
+garminconnect = [
+    "garminconnect",
+    "curl_cffi",
+]
+
 [project.scripts]
 garmin-tcx-ai = "garmin_tcx_ai.cli:main"
 

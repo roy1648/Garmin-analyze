@@ -187,6 +187,28 @@ Boundary:
 
 
 
+### 2.10 `importers/garminconnect_importer.py`
+
+`import-garminconnect` 是 post-MVP local-only optional importer，位置在既有
+pipeline 前面：
+
+```text
+CLI import-garminconnect
+  -> importers/garminconnect_importer.py
+  -> local TCX download folder
+  -> pipeline.run_bundle()
+```
+
+責任邊界：
+
+- 使用 optional `garminconnect` dependency 下載 TCX 到本機 `data/raw/`。
+- 不把 `garminconnect` 加入 core dependencies。
+- 不改變 `session_bundle` / `coach_handoff` schema。
+- 不修改 parser、normalizer、privacy、summary、session、exporter contracts。
+- 不新增 Streamlit Garmin login UI、背景排程、資料庫、雲端同步、AI API upload
+  或 coaching/medical interpretation。
+- Windows launcher / EXE packaging kit 不包含 Garmin Connect login flow。
+
 ## 3. Session Bundle API
 
 ```python
