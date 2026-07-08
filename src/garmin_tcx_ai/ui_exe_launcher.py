@@ -15,6 +15,15 @@ def _resource_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _ensure_app_import_path(root: Path) -> Path:
+    """Ensure bundled source files are importable by Streamlit reruns."""
+    src_path = root / "src"
+    src_text = str(src_path)
+    if src_text not in sys.path:
+        sys.path.insert(0, src_text)
+    return src_path
+
+
 def main() -> int:
     """Launch the Streamlit local UI application.
 
@@ -28,6 +37,13 @@ def main() -> int:
     os.environ["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] = "false"
 
     root = _resource_root()
+    src_path = _ensure_app_import_path(root)
+    existing_pythonpath = os.environ.get("PYTHONPATH")
+    if existing_pythonpath:
+        os.environ["PYTHONPATH"] = f"{src_path}{os.pathsep}{existing_pythonpath}"
+    else:
+        os.environ["PYTHONPATH"] = str(src_path)
+
     app_path = root / "src" / "garmin_tcx_ai" / "ui_streamlit.py"
 
     if not app_path.is_file():

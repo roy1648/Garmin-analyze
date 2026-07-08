@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_data_files, collect_all
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 datas = []
 binaries = []
@@ -13,6 +13,11 @@ hiddenimports.extend(tmp_hiddenimports)
 
 # Add our own package files (the src/garmin_tcx_ai directory containing ui_streamlit.py)
 datas.append(('../src/garmin_tcx_ai', 'src/garmin_tcx_ai'))
+hiddenimports.extend(collect_submodules('garmin_tcx_ai'))
+hiddenimports.extend([
+    'tkinter',
+    'tkinter.filedialog',
+])
 
 block_cipher = None
 
