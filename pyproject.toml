@@ -8,9 +8,14 @@ version = "0.1.0"
 description = "Personal Garmin TCX ETL and analysis scaffold."
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [
+    { name = "Jia-Long Chen" }
+]
+license = "MIT"
 dependencies = [
     "streamlit>=1.56",
 ]
+
 
 [project.optional-dependencies]
 garminconnect = [
