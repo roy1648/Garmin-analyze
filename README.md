@@ -20,8 +20,8 @@ data/processed/         # 本機轉換輸出目錄 (Git 忽略)
 
 ```powershell
 uv sync
-uv run python -m pytest -q
-uv run python -m ruff check src tests --no-cache
+uv run --with pytest pytest -q
+uv run --with ruff ruff check src tests --no-cache
 ```
 
 ## 安裝與執行
