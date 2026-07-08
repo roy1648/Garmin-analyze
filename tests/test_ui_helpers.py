@@ -381,3 +381,51 @@ def test_select_directory_dialog_tk_failure(monkeypatch) -> None:
     assert result.path_text == ""
     assert "無法開啟資料夾選擇器" in result.message
 
+
+def test_validate_garmin_date_range_valid() -> None:
+    """Test validate_garmin_date_range with valid input inputs."""
+    from datetime import date
+    from garmin_tcx_ai.ui_helpers import validate_garmin_date_range
+
+    res = validate_garmin_date_range(date(2026, 7, 1), date(2026, 7, 8))
+    assert res.is_valid
+    assert "有效" in res.message
+
+
+def test_validate_garmin_date_range_missing() -> None:
+    """Test validate_garmin_date_range with None values."""
+    from garmin_tcx_ai.ui_helpers import validate_garmin_date_range
+
+    res1 = validate_garmin_date_range(None, None)
+    assert not res1.is_valid
+    assert "填寫" in res1.message
+
+
+def test_validate_garmin_date_range_start_after_end() -> None:
+    """Test validate_garmin_date_range with start date after end date."""
+    from datetime import date
+    from garmin_tcx_ai.ui_helpers import validate_garmin_date_range
+
+    res = validate_garmin_date_range(date(2026, 7, 8), date(2026, 7, 1))
+    assert not res.is_valid
+    assert "晚於" in res.message
+
+
+def test_validate_garmin_date_range_exceeds_max_days() -> None:
+    """Test validate_garmin_date_range with range exceeding 366 days."""
+    from datetime import date
+    from garmin_tcx_ai.ui_helpers import validate_garmin_date_range
+
+    res = validate_garmin_date_range(date(2025, 1, 1), date(2026, 1, 3))
+    assert not res.is_valid
+    assert "366" in res.message
+
+
+def test_default_garmin_download_dir() -> None:
+    """Test default_garmin_download_dir returns the expected Path."""
+    from pathlib import Path
+    from garmin_tcx_ai.ui_helpers import default_garmin_download_dir
+
+    res = default_garmin_download_dir()
+    assert res == Path("data/raw/garminconnect_ui")
+

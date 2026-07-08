@@ -152,6 +152,15 @@ CLI 不加入任何 business logic 或核心資料推論。
 
 - `ui_streamlit.py` 是 post-MVP local UX layer，提供本機表單操作介面。
 - 收集 input path、output path、GPS policy、timezone、max gap minutes 與輸出選項。
+- 支援資料來源選擇流程 (UI data source selection flow)：
+  ```text
+  Local UI
+    -> source mode
+       -> local TCX path -> pipeline.run_bundle()
+       -> Garmin Connect -> importer.download_tcx_activities()
+                         -> local TCX download folder
+                         -> pipeline.run_bundle()
+  ```
 - 呼叫 `pipeline.run_bundle()` 執行整個轉換流程。
 - 顯示 structured result、warnings、output paths 與 Markdown 預覽。
 - `ui_helpers.py` 提供不依賴 Streamlit runtime 的純 Python 輔助函式，便於進行單元測試。
@@ -208,6 +217,16 @@ CLI import-garminconnect
 - 不新增 Streamlit Garmin login UI、背景排程、資料庫、雲端同步、AI API upload
   或 coaching/medical interpretation。
 - Windows launcher / EXE packaging kit 不包含 Garmin Connect login flow。
+
+
+### 2.11 `credentials.py`
+
+責任邊界：
+
+- 提供純 Python wrapper 以調用 `keyring` (在 Windows 11 上透過 Windows Credential Manager 後端儲存)。
+- 負責儲存、獲取、檢查和刪除本機 Garmin Connect 密碼。
+- 採用 lazy import 機制，在未安裝 `keyring` 時，不會導致核心或 UI 崩潰。
+- 不得將密碼與憑證寫入專案內任何設定檔、.env 或 logs，也絕不在 UI 或訊息中洩漏明文密碼。
 
 ## 3. Session Bundle API
 

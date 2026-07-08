@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 import html
 import json
 from pathlib import Path
 
 import streamlit as st
 
+from garmin_tcx_ai.credentials import (
+    get_stored_password,
+    set_stored_password,
+    delete_stored_password,
+)
+from garmin_tcx_ai.importers import (
+    GarminConnectImportConfig,
+    download_tcx_activities,
+)
 from garmin_tcx_ai.pipeline import BundleRunConfig, run_bundle
 from garmin_tcx_ai.ui_helpers import (
     default_output_dir,
@@ -18,6 +28,8 @@ from garmin_tcx_ai.ui_helpers import (
     read_output_text,
     select_directory_dialog,
     select_tcx_file_dialog,
+    validate_garmin_date_range,
+    default_garmin_download_dir,
 )
 
 
@@ -190,55 +202,173 @@ def main() -> None:
     with col1:
         st.subheader("參數設定")
 
-        # ── Input path ─────────────────────────────────────────────────────
-        col_in, col_btn_file, col_btn_dir = st.columns(
-            [3, 1, 1], vertical_alignment="bottom"
+        # ── Data Source Mode ────────────────────────────────────────────────
+        source_mode = st.radio(
+            "資料來源",
+            ["本機 TCX 檔案 / 資料夾", "Garmin Connect 下載"],
+            index=0,
         )
 
-        def _on_pick_tcx_file() -> None:
-            _apply_dialog_result(
-                select_tcx_file_dialog(), "input_path_val", "_input_notice"
+        if source_mode == "本機 TCX 檔案 / 資料夾":
+            # ── Input path ─────────────────────────────────────────────────────
+            col_in, col_btn_file, col_btn_dir = st.columns(
+                [3, 1, 1], vertical_alignment="bottom"
             )
 
-        def _on_pick_tcx_dir() -> None:
-            _apply_dialog_result(
-                select_directory_dialog("選擇包含 TCX 的資料夾"),
-                "input_path_val",
-                "_input_notice",
-            )
+            def _on_pick_tcx_file() -> None:
+                _apply_dialog_result(
+                    select_tcx_file_dialog(), "input_path_val", "_input_notice"
+                )
 
-        with col_btn_file:
-            st.button(
-                "選擇 TCX 檔案",
-                key="btn_tcx_file",
-                on_click=_on_pick_tcx_file,
-            )
+            def _on_pick_tcx_dir() -> None:
+                _apply_dialog_result(
+                    select_directory_dialog("選擇包含 TCX 的資料夾"),
+                    "input_path_val",
+                    "_input_notice",
+                )
 
-        with col_btn_dir:
-            st.button(
-                "選擇 TCX 資料夾",
-                key="btn_tcx_dir",
-                on_click=_on_pick_tcx_dir,
-            )
+            with col_btn_file:
+                st.button(
+                    "選擇 TCX 檔案",
+                    key="btn_tcx_file",
+                    on_click=_on_pick_tcx_file,
+                )
 
-        with col_in:
-            input_path_str = st.text_input(
-                "Input path (TCX 檔案或資料夾路徑)",
-                help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
-                key="input_path_val",
-            )
+            with col_btn_dir:
+                st.button(
+                    "選擇 TCX 資料夾",
+                    key="btn_tcx_dir",
+                    on_click=_on_pick_tcx_dir,
+                )
 
-        _show_notice("_input_notice")
+            with col_in:
+                input_path_str = st.text_input(
+                    "Input path (TCX 檔案或資料夾路徑)",
+                    help="指定單一 .tcx 檔案路徑，或包含 .tcx 檔案的資料夾路徑。",
+                    key="input_path_val",
+                )
 
-        # Immediate input path validation
-        path_status = inspect_input_path(input_path_str)
-        if path_status.is_valid:
-            st.success(path_status.message)
-        else:
-            if not input_path_str.strip():
-                st.warning(path_status.message)
+            _show_notice("_input_notice")
+
+            # Immediate input path validation
+            path_status = inspect_input_path(input_path_str)
+            if path_status.is_valid:
+                st.success(path_status.message)
             else:
-                st.error(path_status.message)
+                if not input_path_str.strip():
+                    st.warning(path_status.message)
+                else:
+                    st.error(path_status.message)
+        else:
+            # ── Garmin Connect ─────────────────────────────────────────────────
+            garmin_email = st.text_input(
+                "Garmin Connect email (電子郵件)",
+                help="請輸入您的 Garmin Connect 登入電子郵件。",
+            )
+
+            col_pw_opt1, col_pw_opt2 = st.columns(2)
+            with col_pw_opt1:
+                use_stored_password = st.checkbox("使用已儲存密碼", value=True)
+            with col_pw_opt2:
+                remember_password = st.checkbox(
+                    "將密碼儲存到 Windows Credential Manager", value=False
+                )
+
+            has_stored = False
+            stored_pwd = None
+            if garmin_email.strip():
+                stored_pwd = get_stored_password(garmin_email.strip())
+                has_stored = stored_pwd is not None
+
+            if use_stored_password and has_stored:
+                password_input = st.text_input(
+                    "Garmin Connect password",
+                    type="password",
+                    placeholder="使用已儲存的密碼 (如需修改請在此輸入)",
+                    help="系統憑證管理員中已有儲存此帳號的密碼。",
+                )
+                effective_password = (
+                    password_input if password_input else stored_pwd
+                )
+            else:
+                effective_password = st.text_input(
+                    "Garmin Connect password",
+                    type="password",
+                    placeholder="請輸入密碼",
+                )
+
+            if st.button("刪除已儲存 Garmin 密碼"):
+                if not garmin_email.strip():
+                    st.error("請輸入 Garmin Connect email 以進行刪除。")
+                else:
+                    del_status = delete_stored_password(garmin_email.strip())
+                    if not del_status.available:
+                        st.error(del_status.message)
+                    elif del_status.has_password:
+                        st.error(del_status.message)
+                    else:
+                        st.success(del_status.message)
+
+            col_start, col_end = st.columns(2)
+            with col_start:
+                start_date = st.date_input(
+                    "Start date (開始日期)",
+                    value=date.today() - timedelta(days=6),
+                )
+            with col_end:
+                end_date = st.date_input(
+                    "End date (結束日期)",
+                    value=date.today(),
+                )
+
+            activity_type = st.selectbox(
+                "Activity type (活動類型)",
+                ["running", "cycling", "walking", "hiking", "swimming"],
+                index=0,
+            )
+
+            limit_val = st.number_input(
+                "Limit (下載數量限制，可選)",
+                min_value=0,
+                value=0,
+                step=1,
+                help="限制下載的活動數量。設為 0 表示不限制。",
+            )
+            limit = int(limit_val) if limit_val > 0 else None
+
+            overwrite = st.checkbox(
+                "Overwrite existing TCX (覆寫已存在的 TCX 檔案)",
+                value=False,
+            )
+
+            # Download folder path and directory picker
+            col_dl_dir, col_btn_dl = st.columns(
+                [3, 1], vertical_alignment="bottom"
+            )
+            default_dl = str(default_garmin_download_dir())
+
+            def _on_pick_download_dir() -> None:
+                _apply_dialog_result(
+                    select_directory_dialog("選擇下載資料夾"),
+                    "download_path_val",
+                    "_download_notice",
+                )
+
+            if "download_path_val" not in st.session_state:
+                st.session_state.download_path_val = default_dl
+
+            with col_btn_dl:
+                st.button(
+                    "選擇下載資料夾",
+                    key="btn_dl_dir",
+                    on_click=_on_pick_download_dir,
+                )
+            with col_dl_dir:
+                download_dir_str = st.text_input(
+                    "Download folder (下載儲存資料夾)",
+                    key="download_path_val",
+                )
+            _show_notice("_download_notice")
 
         # ── Output folder ──────────────────────────────────────────────────
         col_out, col_btn_out = st.columns(
@@ -315,17 +445,31 @@ def main() -> None:
 
         # Pre-run Summary
         st.markdown("### 即將執行：")
-        tcx_desc = (
-            f"{path_status.tcx_count} 個" if path_status.is_valid else "無效"
-        )
-        st.markdown(
-            f"- **Input**: `{input_path_str.strip() or '未填寫'}`\n"
-            f"- **TCX count**: {tcx_desc}\n"
-            f"- **Output**: `{output_dir_str.strip() or '將使用預設路徑'}`\n"
-            f"- **GPS policy**: `{gps_policy}`\n"
-            f"- **Coach handoff**: {'on' if write_coach_handoff else 'off'}\n"
-            f"- **Atomic artifacts**: {'on' if write_atomic else 'off'}"
-        )
+        if source_mode == "本機 TCX 檔案 / 資料夾":
+            tcx_desc = (
+                f"{path_status.tcx_count} 個" if path_status.is_valid else "無效"
+            )
+            st.markdown(
+                f"- **資料來源**: `本機 TCX`\n"
+                f"- **Input**: `{input_path_str.strip() or '未填寫'}`\n"
+                f"- **TCX count**: {tcx_desc}\n"
+                f"- **Output**: `{output_dir_str.strip() or '將使用預設路徑'}`\n"
+                f"- **GPS policy**: `{gps_policy}`\n"
+                f"- **Coach handoff**: {'on' if write_coach_handoff else 'off'}\n"
+                f"- **Atomic artifacts**: {'on' if write_atomic else 'off'}"
+            )
+        else:
+            st.markdown(
+                f"- **資料來源**: `Garmin Connect 下載`\n"
+                f"- **Email**: `{garmin_email.strip() or '未填寫'}`\n"
+                f"- **下載日期範圍**: `{start_date} ~ {end_date}`\n"
+                f"- **活動類型**: `{activity_type}`\n"
+                f"- **下載目錄**: `{download_dir_str.strip()}`\n"
+                f"- **Output**: `{output_dir_str.strip() or '將使用預設路徑'}`\n"
+                f"- **GPS policy**: `{gps_policy}`\n"
+                f"- **Coach handoff**: {'on' if write_coach_handoff else 'off'}\n"
+                f"- **Atomic artifacts**: {'on' if write_atomic else 'off'}"
+            )
 
         if gps_policy == "keep":
             st.warning(
@@ -340,45 +484,141 @@ def main() -> None:
         run_btn = st.button("開始轉換")
 
         if run_btn:
-            run_status = inspect_input_path(input_path_str)
-            if not run_status.is_valid:
-                st.error(f"無法執行：{run_status.message}")
-                if "run_result" in st.session_state:
-                    del st.session_state["run_result"]
-            else:
-                from garmin_tcx_ai.pipeline import BundleRunResult
-                try:
-                    normalized_out = normalize_output_path(output_dir_str)
-                    config = BundleRunConfig(
-                        input_path=Path(input_path_str.strip()),
-                        output_dir=normalized_out,
-                        gps_policy=gps_policy,
-                        timezone_name=timezone_name.strip(),
-                        max_gap_minutes=int(max_gap_minutes),
-                        write_atomic=write_atomic,
-                        write_coach_handoff=write_coach_handoff,
-                    )
-                    with st.spinner("執行轉換中..."):
-                        result = run_bundle(config)
-                except Exception as exc:
+            if source_mode == "本機 TCX 檔案 / 資料夾":
+                run_status = inspect_input_path(input_path_str)
+                if not run_status.is_valid:
+                    st.error(f"無法執行：{run_status.message}")
+                    if "run_result" in st.session_state:
+                        del st.session_state["run_result"]
+                    if "import_result" in st.session_state:
+                        del st.session_state["import_result"]
+                else:
+                    if "import_result" in st.session_state:
+                        del st.session_state["import_result"]
+                    from garmin_tcx_ai.pipeline import BundleRunResult
                     try:
-                        err_out = normalize_output_path(output_dir_str)
-                    except Exception:
-                        err_out = default_output_dir()
-                    result = BundleRunResult(
-                        success=False,
-                        activity_count=0,
-                        output_dir=err_out,
-                        warning_messages=[],
-                        error_message=f"無法建立輸出目錄或寫入檔案，請檢查權限與路徑是否正確：{exc}",
+                        normalized_out = normalize_output_path(output_dir_str)
+                        config = BundleRunConfig(
+                            input_path=Path(input_path_str.strip()),
+                            output_dir=normalized_out,
+                            gps_policy=gps_policy,
+                            timezone_name=timezone_name.strip(),
+                            max_gap_minutes=int(max_gap_minutes),
+                            write_atomic=write_atomic,
+                            write_coach_handoff=write_coach_handoff,
+                        )
+                        with st.spinner("執行轉換中..."):
+                            result = run_bundle(config)
+                    except Exception as exc:
+                        try:
+                            err_out = normalize_output_path(output_dir_str)
+                        except Exception:
+                            err_out = default_output_dir()
+                        result = BundleRunResult(
+                            success=False,
+                            activity_count=0,
+                            output_dir=err_out,
+                            warning_messages=[],
+                            error_message=f"無法建立輸出目錄或寫入檔案，請檢查權限與路徑是否正確：{exc}",
+                        )
+                    st.session_state.run_result = result
+                    st.session_state.run_counter = (
+                        st.session_state.get("run_counter", 0) + 1
                     )
-                st.session_state.run_result = result
-                st.session_state.run_counter = (
-                    st.session_state.get("run_counter", 0) + 1
-                )
+            else:
+                # Garmin Connect Mode
+                if not garmin_email.strip():
+                    st.error("無法執行：請輸入 Garmin Connect email。")
+                elif not effective_password:
+                    st.error("無法執行：請輸入密碼或啟用已儲存的密碼。")
+                else:
+                    date_status = validate_garmin_date_range(start_date, end_date)
+                    if not date_status.is_valid:
+                        st.error(f"無法執行：{date_status.message}")
+                    else:
+                        # Optional save password to keyring
+                        if remember_password and effective_password:
+                            save_status = set_stored_password(garmin_email.strip(), effective_password)
+                            if save_status.has_password:
+                                st.info("密碼已儲存到系統認證管理員。")
+                            else:
+                                st.warning("密碼無法儲存，將只用於本次執行。")
+
+                        # Download
+                        import_config = GarminConnectImportConfig(
+                            start_date=start_date.strftime("%Y-%m-%d"),
+                            end_date=end_date.strftime("%Y-%m-%d"),
+                            activity_type=activity_type,
+                            download_dir=Path(download_dir_str.strip()),
+                            email=garmin_email.strip(),
+                            password=effective_password,
+                            limit=limit,
+                            overwrite=overwrite,
+                        )
+
+                        with st.spinner("從 Garmin Connect 下載 TCX 檔案中..."):
+                            import_result = download_tcx_activities(import_config)
+
+                        st.session_state.import_result = import_result
+
+                        if not import_result.success:
+                            st.error(f"下載失敗：{import_result.error_message}")
+                            if "run_result" in st.session_state:
+                                del st.session_state["run_result"]
+                        else:
+                            from garmin_tcx_ai.pipeline import BundleRunResult
+                            try:
+                                normalized_out = normalize_output_path(output_dir_str)
+                                config = BundleRunConfig(
+                                    input_path=import_result.download_dir,
+                                    output_dir=normalized_out,
+                                    gps_policy=gps_policy,
+                                    timezone_name=timezone_name.strip(),
+                                    max_gap_minutes=int(max_gap_minutes),
+                                    write_atomic=write_atomic,
+                                    write_coach_handoff=write_coach_handoff,
+                                )
+                                with st.spinner("執行轉換與分析中..."):
+                                    result = run_bundle(config)
+                            except Exception as exc:
+                                try:
+                                    err_out = normalize_output_path(output_dir_str)
+                                except Exception:
+                                    err_out = default_output_dir()
+                                result = BundleRunResult(
+                                    success=False,
+                                    activity_count=0,
+                                    output_dir=err_out,
+                                    warning_messages=[],
+                                    error_message=f"無法建立輸出目錄或寫入檔案，請檢查權限與路徑是否正確：{exc}",
+                                )
+                            st.session_state.run_result = result
+                            st.session_state.run_counter = (
+                                st.session_state.get("run_counter", 0) + 1
+                            )
 
     with col2:
         st.subheader("轉換結果")
+        if "import_result" in st.session_state:
+            imp_res = st.session_state.import_result
+            st.markdown("### Garmin Connect 下載結果")
+            if imp_res.success:
+                st.success("🎉 下載成功！")
+            else:
+                st.error("❌ 下載失敗！")
+            st.markdown(
+                f"- **已下載活動**: {imp_res.downloaded_count}\n"
+                f"- **已跳過活動**: {imp_res.skipped_count}\n"
+                f"- **失敗活動**: {imp_res.failed_count}\n"
+                f"- **下載目錄**: `{imp_res.download_dir.resolve()}`"
+            )
+            if imp_res.warning_messages:
+                with st.expander("下載警告訊息", expanded=False):
+                    for warning in imp_res.warning_messages:
+                        st.warning(warning)
+            if imp_res.error_message:
+                st.error(imp_res.error_message)
+            st.markdown("---")
         if "run_result" in st.session_state:
             res = st.session_state.run_result
             if res.success:
@@ -484,6 +724,11 @@ def main() -> None:
                         st.markdown(ch_md_text)
                     else:
                         st.write("未產生")
+
+    # Security: Redact any password key from session state
+    for k in list(st.session_state.keys()):
+        if "password" in k.lower():
+            st.session_state[k] = ""
 
 
 if __name__ == "__main__":
