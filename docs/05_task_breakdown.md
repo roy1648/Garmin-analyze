@@ -437,5 +437,28 @@ Non-goals：
 - 不修改 production code。
 
 
+## Phase 25：Windows EXE Packaging
+
+目標：
+- 建立 Windows EXE packaging 流程與 kit。
+- 支援 CLI 與 Local UI 的 PyInstaller spec 設定。
+- 建立人工執行 build 的 CMD 腳本，避免 AI 執行 PyInstaller 造成 Token 消耗。
+- 建立 smoke 測試與 clean 腳本。
+
+完成條件：
+- 新增 `src/garmin_tcx_ai/ui_exe_launcher.py` 作為 UI entry point。
+- 新增 `packaging/garmin-tcx-ai-cli.spec` 與 `packaging/garmin-tcx-ai-ui.spec`。
+- 新增 `packaging/version_info.txt` 規格。
+- 新增 `scripts/build_exe.manual.cmd`。
+- 新增 `scripts/smoke_exe.manual.cmd`。
+- 新增 `scripts/clean_packaging_artifacts.cmd`。
+- 新增 `docs/09_windows_exe_packaging.md` 文件。
+- 更新 `.gitignore` 與 `RELEASE_NOTES.md`。
+- Agent 不得執行 PyInstaller build，僅提供 packaging kit，實際 build 留給人類本機執行。
+- 不新增 dependency，使用 `uv run --with pyinstaller pyinstaller ...`。
+- 不修改核心邏輯與 output contract。
+
+
+
 
 

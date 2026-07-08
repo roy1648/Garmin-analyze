@@ -19,6 +19,9 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+*.spec.tmp
+*.exe
+.packaging-logs/
 
 # Local secrets and machine-specific config
 .env

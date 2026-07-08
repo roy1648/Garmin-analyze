@@ -123,9 +123,13 @@ scripts\run_validation.cmd
 scripts\run_cli_smoke.cmd
 ```
 
-EXE packaging is not included yet. See:
+EXE packaging is supported via a manual local compilation kit. See:
+- [docs/09_windows_exe_packaging.md](file:///d:/01-Git%20code/10-garmin%20project/docs/09_windows_exe_packaging.md)
 
-* `docs/08_windows_launcher_and_packaging_readiness.md`
+Manual build, smoke test, and cleanup scripts are located at:
+- `scripts\build_exe.manual.cmd`
+- `scripts\smoke_exe.manual.cmd`
+- `scripts\clean_packaging_artifacts.cmd`
 
 ## Release Candidate Status
 

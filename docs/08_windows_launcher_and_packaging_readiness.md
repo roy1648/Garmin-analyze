@@ -88,10 +88,7 @@ Cons:
 
 ## Recommended next step
 
-After this PR:
+The Windows EXE Packaging Kit has been established in Phase 25 (PR #25). 
 
-* manually validate `scripts\run_ui.cmd` on Windows.
-* then open a separate packaging spike PR.
-
-Suggested next PR:
-`Packaging Spike for Windows EXE`
+To proceed with manual PyInstaller execution, testing, and troubleshooting, please refer to:
+- [docs/09_windows_exe_packaging.md](file:///d:/01-Git%20code/10-garmin%20project/docs/09_windows_exe_packaging.md)
