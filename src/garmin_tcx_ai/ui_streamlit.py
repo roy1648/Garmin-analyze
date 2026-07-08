@@ -77,7 +77,7 @@ def render_copy_button_or_text_area(
                     status.textContent = "";
                 }}, 2000);
             }} catch (err) {{
-                status.textContent = "複製失敗，請改用下方文字框手動複製。";
+                status.textContent = "複製失敗，請重試。";
             }}
         }};
         btn.onmouseover = () => {{
@@ -92,17 +92,6 @@ def render_copy_button_or_text_area(
         """,
         height=45,
     )
-
-    with st.expander(f"{label}（手動複製）", expanded=False):
-        st.text_area(
-            f"{label}（手動複製）",
-            value=text,
-            height=150,
-            key=f"manual_copy_{key}",
-            label_visibility="collapsed",
-            help="請點進文字框，全選後複製。",
-        )
-        st.caption("請點進文字框，全選後複製。")
 
 
 def _init_session_state() -> None:
@@ -375,7 +364,6 @@ def main() -> None:
                     try:
                         err_out = normalize_output_path(output_dir_str)
                     except Exception:
-                        from garmin_tcx_ai.ui_helpers import default_output_dir
                         err_out = default_output_dir()
                     result = BundleRunResult(
                         success=False,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from garmin_tcx_ai.ui_helpers import (
@@ -61,6 +62,22 @@ def test_default_output_dir_uses_data_processed_prefix(tmp_path: Path) -> None:
     res_default = default_output_dir()
     assert res_default.parent == Path("data") / "processed"
     assert res_default.name.startswith("ui_run_")
+
+
+def test_default_output_dir_name_format_no_microseconds(
+    tmp_path: Path,
+) -> None:
+    """Test default_output_dir name matches ui_run_YYYYMMDD_HHMMSS_N format.
+
+    The name must NOT contain a microseconds segment (%f).
+    """
+    _pattern = re.compile(r"^ui_run_\d{8}_\d{6}_\d+$")
+    for _ in range(5):
+        name = default_output_dir(tmp_path).name
+        assert _pattern.match(name), (
+            f"Folder name {name!r} does not match "
+            "ui_run_YYYYMMDD_HHMMSS_N pattern"
+        )
 
 
 def test_default_output_dir_uniqueness_rapid_calls() -> None:
