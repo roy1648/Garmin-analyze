@@ -288,3 +288,81 @@ def test_missing_optional_dependency_returns_clear_error(
 
     assert result.success is False
     assert result.error_message == "install optional extra"
+
+
+def test_download_uses_password_provider_if_provided(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that download_tcx_activities queries the password provider if passed."""
+    conf = GarminConnectImportConfig(
+        start_date="2026-07-01",
+        end_date="2026-07-08",
+        activity_type="running",
+        download_dir=tmp_path,
+        email="runner@example.test",
+    )
+    _FakeGarmin.activities = [
+        {"activityId": 101, "startTimeLocal": "2026-07-01 06:30:00"}
+    ]
+    _FakeGarmin.downloads = {"101": b"<TrainingCenterDatabase />"}
+
+    monkeypatch.delattr(importer.getpass, "getpass", raising=False)
+
+    called_provider = False
+    def mock_provider(email: str) -> str:
+        nonlocal called_provider
+        called_provider = True
+        assert email == "runner@example.test"
+        return "provider_password"
+
+    result = download_tcx_activities(conf, password_provider=mock_provider)
+    assert result.success is True
+    assert called_provider is True
+    assert _FakeGarmin.instances[0].password == "provider_password"
+
+
+def test_download_uses_config_password_directly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that download_tcx_activities uses the config password directly without prompting."""
+    conf = GarminConnectImportConfig(
+        start_date="2026-07-01",
+        end_date="2026-07-08",
+        activity_type="running",
+        download_dir=tmp_path,
+        email="runner@example.test",
+        password="direct_password",
+    )
+    _FakeGarmin.activities = [
+        {"activityId": 101, "startTimeLocal": "2026-07-01 06:30:00"}
+    ]
+    _FakeGarmin.downloads = {"101": b"<TrainingCenterDatabase />"}
+
+    monkeypatch.delattr(importer.getpass, "getpass", raising=False)
+
+    result = download_tcx_activities(conf)
+    assert result.success is True
+    assert _FakeGarmin.instances[0].password == "direct_password"
+
+
+def test_download_empty_password_fails_gracefully(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that empty password returns a structured failure without login attempt."""
+    conf = GarminConnectImportConfig(
+        start_date="2026-07-01",
+        end_date="2026-07-08",
+        activity_type="running",
+        download_dir=tmp_path,
+        email="runner@example.test",
+        password="",
+    )
+    monkeypatch.setattr(importer.getpass, "getpass", lambda prompt: "")
+
+    result = download_tcx_activities(conf)
+    assert result.success is False
+    assert "password must not be empty" in result.error_message
+    assert not _FakeGarmin.instances

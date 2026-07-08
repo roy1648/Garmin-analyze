@@ -81,14 +81,29 @@ uv run garmin-tcx-ai bundle `
 
 ## 本機 UI 介面 (Local UI Usage)
 
-啟動：
+啟動 (預設本機模式，無 Garmin Connect 下載功能)：
 
 ```powershell
 uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
 ```
 
+啟動 (含 Garmin Connect 下載與憑證儲存功能，需要安裝 optional dependency)：
+
+```powershell
+uv sync --extra garminconnect
+uv run --extra garminconnect streamlit run src/garmin_tcx_ai/ui_streamlit.py
+```
+
 ### 使用與功能說明
 
+* **資料來源選擇 (Data Source Selection)**：可在最上方切換：
+  - **本機 TCX 檔案 / 資料夾**：維持標準本機檔案處理。
+  - **Garmin Connect 下載**：輸入 Email、密碼與日期範圍，即可自動下載並分析活動。
+* **密碼安全儲存 (Keyring Credential Storage)**：
+  - 在 Windows 上，若勾選「將密碼儲存到 Windows Credential Manager」，密碼會以安全性機制儲存於 Windows 11 的 Credential Manager 中。
+  - 勾選「使用已儲存密碼」，會在 Email 輸入後自動帶入已儲存密碼。
+  - 提供「刪除已儲存 Garmin 密碼」按鈕，可一鍵移除已儲存的金鑰。
+  - 密碼絕不寫入專案內任何設定檔、`.env` 或 logs。
 * **手動輸入路徑 (Manual input path)**：可手動在「Input path」欄位輸入單一 TCX 檔案或資料夾路徑。
 * **原生選取器按鈕 (Native picker buttons)**：可使用「選擇 TCX 檔案」或「選擇 TCX 資料夾」按鈕，透過本機 OS 視窗選取路徑。
 * **輸出資料夾選取 (Output folder selection)**：可透過「選擇輸出資料夾」按鈕選擇目錄，或使用「重新產生預設輸出資料夾」產生具備唯一 timestamp 的輸出路徑。
@@ -151,8 +166,7 @@ uv run --with garminconnect --with curl_cffi garmin-tcx-ai import-garminconnect 
 - Garmin token、credentials、`.env`、`~/.garminconnect` 與任何私人活動資料
   不可 commit。
 - 下載的 TCX 會落在 `data/raw/` 底下，該路徑已由 `.gitignore` 忽略。
-- Garmin Connect importer 是 optional CLI feature；現有 Streamlit UI 與
-  Windows EXE packaging kit 不包含 Garmin Connect login flow。
+- Garmin Connect importer 是 optional CLI 與 UI feature；在 UI 模式中，支援藉由系統金鑰庫 (Windows Credential Manager) 安全儲存密碼。Windows EXE packaging kit 不包含 Garmin Connect login flow。
 
 ## Windows Local Launcher
 

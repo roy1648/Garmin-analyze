@@ -495,3 +495,32 @@ Non-goals：
 - 不做 planned workout matching 或 workout role inference。
 - 不把 Garmin Connect dependency 打進 Windows EXE packaging kit。
 - 不在 CI 跑真實 Garmin API integration tests。
+
+
+## Phase 27：Local UI Garmin Connect Import Flow and Credential Storage
+
+目標：
+
+- 在 Local UI 中加入資料來源選擇（本機 TCX 或 Garmin Connect 下載後分析）。
+- 整合 Windows 11 友善的系統 keyring / Windows Credential Manager 密碼安全儲存，免除每次手動輸入密碼。
+
+完成條件：
+
+- `pyproject.toml` 將 `keyring` 加入 `garminconnect` optional dependency 列表。
+- 新增 `src/garmin_tcx_ai/credentials.py` 提供系統金鑰庫 (keyring) 封裝並支援 lazy import，未安裝時不導致崩潰。
+- `download_tcx_activities()` 支援 `password_provider` 與 `config.password`，防止 terminal `getpass` 阻礙 UI。
+- UI 新增資料來源 Radio 選擇器。
+- Garmin Connect 模式 UI 包含 Email、密碼策略控制、密碼刪除按鈕、下載範圍與選項。
+- 遵循嚴格安全策略：不顯示明文密碼，密碼不在 session_state 長期保留，不寫入設定檔、.env 或 logs。
+- 實作日期範圍上限限制（366天），避免大量資料下載。
+- UI 支援顯示 Garmin Connect 下載與分析結果的完整指標。
+- 新增 `tests/test_credentials.py` 與擴充測試，無真實 API 與 Credential Manager 寫入。
+- 專案測試與 lint 全數通過。
+
+非目標：
+
+- 不新增背景排程與同步。
+- 不引入資料庫。
+- 不進行 Web UI / 雲端部署。
+- 不在 CI 跑真實 Garmin API 或 Windows Credential Manager 寫入測試。
+- 不修改核心輸出契約。

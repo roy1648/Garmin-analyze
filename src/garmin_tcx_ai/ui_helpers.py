@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 import importlib
 import os
 from pathlib import Path
@@ -392,3 +392,58 @@ def select_directory_dialog(title: str = "選擇資料夾") -> DialogResult:
             path_text="",
             message=f"無法開啟資料夾選擇器：{exc}",
         )
+
+
+@dataclass(frozen=True)
+class GarminDateRangeStatus:
+    """Status representing the validity of a Garmin Connect date range."""
+
+    is_valid: bool
+    message: str
+
+
+def validate_garmin_date_range(
+    start_date: date | None,
+    end_date: date | None,
+) -> GarminDateRangeStatus:
+    """Validate the date range requested for Garmin Connect activity imports.
+
+    Args:
+        start_date: The start date of the import range.
+        end_date: The end date of the import range.
+
+    Returns:
+        GarminDateRangeStatus indicating validity and status message.
+    """
+    if start_date is None or end_date is None:
+        return GarminDateRangeStatus(
+            is_valid=False,
+            message="必須填寫開始日期與結束日期。",
+        )
+
+    if start_date > end_date:
+        return GarminDateRangeStatus(
+            is_valid=False,
+            message="開始日期不可晚於結束日期。",
+        )
+
+    delta = end_date - start_date
+    if delta.days > 366:
+        return GarminDateRangeStatus(
+            is_valid=False,
+            message="日期範圍不可超過 366 天，以避免下載大量資料。",
+        )
+
+    return GarminDateRangeStatus(
+        is_valid=True,
+        message="日期範圍有效。",
+    )
+
+
+def default_garmin_download_dir() -> Path:
+    """Return the default download directory for Garmin Connect downloads in UI.
+
+    Returns:
+        A Path object.
+    """
+    return Path("data/raw/garminconnect_ui")

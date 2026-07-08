@@ -16,6 +16,7 @@ dependencies = [
 garminconnect = [
     "garminconnect",
     "curl_cffi",
+    "keyring",
 ]
 
 [project.scripts]

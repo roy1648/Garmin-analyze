@@ -13,6 +13,8 @@ from pathlib import Path
 import re
 from typing import Any, Callable
 
+from garmin_tcx_ai.credentials import redact_sensitive_text
+
 
 @dataclass(frozen=True)
 class GarminConnectImportConfig:
@@ -23,6 +25,7 @@ class GarminConnectImportConfig:
     activity_type: str = "running"
     download_dir: Path = Path("data/raw/garminconnect")
     email: str | None = None
+    password: str | None = None
     limit: int | None = None
     overwrite: bool = False
 
@@ -149,13 +152,18 @@ def _target_path(
     return download_dir / filename
 
 
+PasswordProvider = Callable[[str], str]
+
+
 def download_tcx_activities(
     config: GarminConnectImportConfig,
+    password_provider: PasswordProvider | None = None,
 ) -> GarminConnectImportResult:
     """Download Garmin Connect activities as local TCX files.
 
     Args:
         config: Import date range, activity type, destination, and behavior.
+        password_provider: Optional callable to request user password.
 
     Returns:
         Import result with counts, warnings, and local TCX paths.
@@ -194,7 +202,37 @@ def download_tcx_activities(
         )
 
     email = config.email or input("Garmin email: ")
-    password = getpass.getpass("Garmin password: ")
+    password = config.password
+    if not password:
+        if password_provider is not None:
+            try:
+                password = password_provider(email)
+            except Exception as exc:
+                safe_msg = redact_sensitive_text(str(exc))
+                return GarminConnectImportResult(
+                    success=False,
+                    downloaded_count=0,
+                    skipped_count=0,
+                    failed_count=0,
+                    download_dir=download_dir,
+                    tcx_paths=[],
+                    warning_messages=[],
+                    error_message=f"Error obtaining password from provider: {safe_msg}",
+                )
+        else:
+            password = getpass.getpass("Garmin password: ")
+
+    if not password:
+        return GarminConnectImportResult(
+            success=False,
+            downloaded_count=0,
+            skipped_count=0,
+            failed_count=0,
+            download_dir=download_dir,
+            tcx_paths=[],
+            warning_messages=[],
+            error_message="Error: password must not be empty.",
+        )
 
     try:
         client = _create_client(
