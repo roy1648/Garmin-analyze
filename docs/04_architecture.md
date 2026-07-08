@@ -210,13 +210,13 @@ CLI import-garminconnect
 
 責任邊界：
 
-- 使用 optional `garminconnect` dependency 下載 TCX 到本機 `data/raw/`。
-- 不把 `garminconnect` 加入 core dependencies。
-- 不改變 `session_bundle` / `coach_handoff` schema。
-- 不修改 parser、normalizer、privacy、summary、session、exporter contracts。
-- 不新增 Streamlit Garmin login UI、背景排程、資料庫、雲端同步、AI API upload
-  或 coaching/medical interpretation。
-- Windows launcher / EXE packaging kit 不包含 Garmin Connect login flow。
+- Garmin Connect importer / UI download flow 是 post-MVP local-only optional workflow。
+- 使用選用（optional）的 `garminconnect` 依賴套件下載 TCX 到本機 `data/raw/`。
+- 不把 `garminconnect` 加入核心 core dependencies，依然保持為選用依賴。
+- 不改變 `session_bundle` / `coach_handoff` schema，且不修改既有 pipeline 與 session bundle contract。
+- 不修改 parser、normalizer、privacy、summary、session、exporter 核心模組責任。
+- UI/EXE 已支援 Garmin Connect 選用功能（importer 與 keyring 憑證儲存），但真實登入與 Windows Credential Manager 的寫入及讀取不納入自動化測試或 CI，仍屬本機人工驗證範疇。
+- 不新增背景排程、資料庫、雲端同步、自動外部 AI API 上傳或 coaching/medical interpretation。
 
 
 ### 2.11 `credentials.py`
@@ -316,19 +316,15 @@ Cadence 保留 raw Garmin RunCadence 值，不做 x2 conversion。
 
 ## 7. MVP Non-Goals
 
-PR #9 與 MVP 不包含：
+PR #9 與 MVP 不包含以下內容（但後續之 post-MVP 選用功能已支援本機 unofficial Garmin Connect 下載與 Credential Manager 金鑰儲存）：
 
-- Garmin Connect login。
-- Garmin API。
-- GarminDB。
-- Database / SQLite。
-- Cloud Web UI (雲端 Web UI，注意：本機 Local Streamlit UI 為例外已於 PR16-20 加入)。
-- Cloud sync。
-- OpenAI、Claude、Gemini 或 NotebookLM API upload。
-- AI coaching platform。
-- Planned workout matching。
-- Manual feedback input。
+- 官方 Garmin Developer Program API (僅支援本機免付費 unofficial importer)。
+- 雲端資料庫、雲端同步或 Cloud Web UI。
+- 自動化背景排程同步。
+- 外部 AI 服務自動上傳（如 OpenAI, Claude, Gemini, NotebookLM 等 API upload）。
+- AI coaching / 課表推薦平台。
 - HR zone / time in zone。
+- 醫療等級解讀或疾病診斷。
 
 ## 8. Release Candidate Boundary
 

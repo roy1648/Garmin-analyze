@@ -7,7 +7,7 @@ echo ===============================================================
 
 :: Sync dependencies first
 echo [INFO] Running uv sync...
-call uv sync
+call uv sync --extra garminconnect
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] uv sync failed with exit code %ERRORLEVEL%.
     exit /b %ERRORLEVEL%
@@ -22,9 +22,9 @@ for /f "usebackq tokens=*" %%i in (`powershell -NoProfile -Command "Get-Date -Fo
 set CLI_LOG=.packaging-logs\pyinstaller_cli_%TIMESTAMP%.log
 set UI_LOG=.packaging-logs\pyinstaller_ui_%TIMESTAMP%.log
 
-echo [INFO] Building CLI EXE...
+echo [INFO] Building CLI EXE with garminconnect optional dependency...
 echo [INFO] Logging to: %CLI_LOG%
-call uv run --with pyinstaller pyinstaller --clean --noconfirm packaging/garmin-tcx-ai-cli.spec > "%CLI_LOG%" 2>&1
+call uv run --extra garminconnect --with pyinstaller pyinstaller --clean --noconfirm packaging/garmin-tcx-ai-cli.spec > "%CLI_LOG%" 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] CLI Build Failed!
     echo [ERROR] Log file path: %CLI_LOG%
@@ -35,9 +35,9 @@ if %ERRORLEVEL% neq 0 (
 )
 echo [INFO] CLI Build Succeeded!
 
-echo [INFO] Building Streamlit UI EXE...
+echo [INFO] Building Streamlit UI EXE with garminconnect optional dependency...
 echo [INFO] Logging to: %UI_LOG%
-call uv run --with pyinstaller pyinstaller --clean --noconfirm packaging/garmin-tcx-ai-ui.spec > "%UI_LOG%" 2>&1
+call uv run --extra garminconnect --with pyinstaller pyinstaller --clean --noconfirm packaging/garmin-tcx-ai-ui.spec > "%UI_LOG%" 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] UI Build Failed!
     echo [ERROR] Log file path: %UI_LOG%

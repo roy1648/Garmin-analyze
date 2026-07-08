@@ -1,13 +1,32 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_all, collect_submodules
+
+datas = []
+binaries = []
+hiddenimports = []
+
+# Collect optional dependencies
+for pkg in ['garminconnect', 'curl_cffi', 'keyring']:
+    tmp_datas, tmp_binaries, tmp_hiddenimports = collect_all(pkg)
+    datas.extend(tmp_datas)
+    binaries.extend(tmp_binaries)
+    hiddenimports.extend(tmp_hiddenimports)
+
+# Add our own package
+hiddenimports.extend(collect_submodules('garmin_tcx_ai'))
+hiddenimports.extend([
+    'keyring.backends',
+    'keyring.backends.Windows',
+])
 
 block_cipher = None
 
 a = Analysis(
     ['../src/garmin_tcx_ai/cli.py'],
     pathex=['../src'],
-    binaries=[],
-    datas=[],
-    hiddenimports=[],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

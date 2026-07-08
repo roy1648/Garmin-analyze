@@ -11,12 +11,21 @@ datas.extend(tmp_datas)
 binaries.extend(tmp_binaries)
 hiddenimports.extend(tmp_hiddenimports)
 
+# Collect everything from garminconnect, curl_cffi, keyring
+for pkg in ['garminconnect', 'curl_cffi', 'keyring']:
+    tmp_datas, tmp_binaries, tmp_hiddenimports = collect_all(pkg)
+    datas.extend(tmp_datas)
+    binaries.extend(tmp_binaries)
+    hiddenimports.extend(tmp_hiddenimports)
+
 # Add our own package files (the src/garmin_tcx_ai directory containing ui_streamlit.py)
 datas.append(('../src/garmin_tcx_ai', 'src/garmin_tcx_ai'))
 hiddenimports.extend(collect_submodules('garmin_tcx_ai'))
 hiddenimports.extend([
     'tkinter',
     'tkinter.filedialog',
+    'keyring.backends',
+    'keyring.backends.Windows',
 ])
 
 block_cipher = None
