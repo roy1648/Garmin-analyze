@@ -13,6 +13,11 @@ This release candidate covers:
 - Native local path picker.
 - Output folder open action.
 - Copy/manual-copy actions for generated output files.
+- Garmin Connect CLI importer.
+- UI data source selection (Local TCX vs Garmin Connect download).
+- Garmin Connect UI mode with download functionality.
+- Keyring / Windows Credential Manager integration for credential storage.
+- Windows onedir EXE packaging (both CLI and UI).
 
 ## Explicit Non-goals
 
@@ -31,23 +36,36 @@ This release candidate covers:
 - Desktop Installer.
 - File upload / drag-and-drop.
 
-## Automated validation
+## Automated and Manual Validation
 
-List commands:
+Validation commands:
 
 ```powershell
-uv sync
-uv run python -m pytest -q
-uv run python -m ruff check src tests --no-cache
+# Sync project dependencies (including optional Garmin Connect features)
+uv sync --extra garminconnect
+
+# Run unit and integration tests
+uv run --with pytest pytest -q
+
+# Run static analysis
+uv run --with ruff ruff check src tests --no-cache
+
+# Build Windows EXE packages (manual build script)
+scripts\build_exe.manual.cmd
+
+# Execute smoke test script for packaged EXEs
+scripts\smoke_exe.manual.cmd
 ```
 
-For each command, include a result table:
+For each check, here is the validation result:
 
 | Check           | Command                                            | Result                    | Notes |
 | --------------- | -------------------------------------------------- | ------------------------- | ----- |
-| Dependency sync | `uv sync`                                          | Passed                    | Dependencies resolved and synced. |
-| Test suite      | `uv run python -m pytest -q`                       | Passed                    | 175 passed in 1.52s. (Run dynamically as `uv run --with pytest pytest -q` due to pytest not in main dependency group) |
-| Lint            | `uv run python -m ruff check src tests --no-cache` | Passed                    | All checks passed. (Run dynamically as `uv run --with ruff ruff check src tests --no-cache` due to ruff not in main dependency group) |
+| Dependency sync | `uv sync --extra garminconnect`                    | Passed                    | Dependencies resolved and synced (including `garminconnect`, `curl_cffi`, `keyring`). |
+| Test suite      | `uv run --with pytest pytest -q`                   | Passed                    | Passed (based on latest CI / local results). |
+| Lint            | `uv run --with ruff ruff check src tests --no-cache` | Passed                    | All checks passed. |
+| Manual build    | `scripts\build_exe.manual.cmd`                     | Verified                  | Executed locally to produce CLI/UI onedir EXE packages. |
+| Smoke test      | `scripts\smoke_exe.manual.cmd`                     | Verified                  | CLI exit codes and fixture-based bundle operations pass. |
 
 ## CLI smoke test
 
@@ -116,13 +134,21 @@ Checklist:
 
 ## Release Candidate Decision
 
-Current decision: Pending manual Windows smoke test.
+Current decision: Final RC pending only if build/smoke not yet recorded.
+
+### Manual UI EXE Smoke Validation (Verified locally by user)
+- [x] UI EXE starts up successfully and console opens.
+- [x] "資料來源" (Data Source Selection) switch displays at the top.
+- [x] Switching between Local TCX and Garmin Connect download modes functions.
+- [x] In Garmin Connect mode, Email/Password/keyring checkbox fields display correctly.
+- [x] Native local path pickers function within the packaged UI EXE.
+- [x] Session bundle generation executes successfully.
+- [x] Windows Credential Manager integration is verified locally.
 
 A release may proceed only if:
 - Automated tests pass.
 - Ruff passes.
-- CLI smoke test passes.
-- Streamlit UI launches locally.
-- Windows manual UI smoke test passes.
+- Packaged CLI EXE and UI EXE build and smoke tests pass.
+- Packaged UI EXE has been manually verified locally.
 - No private Garmin data is committed.
 - Known limitations are documented.

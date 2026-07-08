@@ -22,3 +22,11 @@ Please run the build script from the project root:
 ```cmd
 scripts\build_exe.manual.cmd
 ```
+
+## Optional Dependencies & Local Verification
+
+The PyInstaller spec files are configured to bundle the optional Garmin Connect dependencies (`garminconnect`, `curl_cffi`, and `keyring`).
+
+To ensure safety:
+- **Manual Verification Only**: Real logins to Garmin Connect and credential operations in the Windows Credential Manager are verified manually by local operators.
+- **No CI Integration**: The automated test suites and CI pipelines do not perform real logins or access the Windows Credential Manager.

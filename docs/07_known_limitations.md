@@ -28,8 +28,8 @@
 
 - Native file picker depends on local OS / tkinter availability.
 - If native picker fails, manual path input remains the fallback.
-- Clipboard copy may depend on browser permission.
-- Manual copy fallback is provided where needed.
+- Clipboard copy depends on browser-side copy functionality and permissions.
+- If browser-side clipboard copy fails, the user can manually select and copy the text directly from the rendered preview/output on the page.
 - Streamlit UI can be run via Python or as a packaged `onedir` EXE.
 
 ## Platform limitations
