@@ -100,6 +100,60 @@ uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
   - `coach_handoff.md`
 * **滿版預覽**：頁面下方以滿版寬度且完整長度顯示產生的三個輸出檔案內容。
 
+## Garmin Connect TCX Importer (Local Optional)
+
+這是 post-MVP 的 local-only optional importer。它只負責登入 Garmin
+Connect、把指定日期區間的 activities 下載成 TCX 到本機資料夾，然後交給既有
+`garmin-tcx-ai bundle` pipeline 產生相同的 `session_bundle` /
+`coach_handoff`。它不改變 session bundle contract，也不新增雲端同步、背景排程、
+資料庫、官方 Garmin Developer API、AI API upload 或 AI coaching。
+
+安裝 optional dependency：
+
+```powershell
+uv sync --extra garminconnect
+```
+
+使用範例：
+
+```powershell
+uv run --extra garminconnect garmin-tcx-ai import-garminconnect `
+  --start-date 2026-07-01 `
+  --end-date 2026-07-08 `
+  --activity-type running `
+  --download-dir data/raw/garminconnect `
+  --output data/processed/garminconnect `
+  --gps-policy redact_start_end `
+  --timezone Asia/Taipei `
+  --max-gap-minutes 30 `
+  --write-coach-handoff
+```
+
+若本機 `uv run --extra garminconnect` 因環境或 lock 狀態無法使用，可改用：
+
+```powershell
+uv run --with garminconnect --with curl_cffi garmin-tcx-ai import-garminconnect `
+  --start-date 2026-07-01 `
+  --end-date 2026-07-08 `
+  --activity-type running `
+  --download-dir data/raw/garminconnect `
+  --output data/processed/garminconnect `
+  --gps-policy redact_start_end `
+  --timezone Asia/Taipei `
+  --max-gap-minutes 30 `
+  --write-coach-handoff
+```
+
+安全邊界：
+
+- CLI 只接受 `--email`，不接受 password 參數；password 會用互動式
+  `getpass` 輸入。
+- Garmin token、credentials、`.env`、`~/.garminconnect` 與任何私人活動資料
+  不可 commit。
+- 下載的 TCX 會落在 `data/raw/` 底下，該路徑已由 `.gitignore` 忽略。
+- Garmin Connect importer 是 optional CLI feature；現有 Streamlit UI 與
+  Windows EXE packaging kit 不包含 Garmin Connect login flow。
+
 ## Windows Local Launcher
 
 For Windows local usage, start the UI with:
