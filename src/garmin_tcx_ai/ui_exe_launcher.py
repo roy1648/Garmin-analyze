@@ -21,7 +21,11 @@ def main() -> int:
     This acts as a programmatic entry point for launching streamlit within
     a packaged executable.
     """
+    import os
     from streamlit.web import cli as stcli
+
+    # Force development mode to false to allow setting custom server port in packaged environment.
+    os.environ["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] = "false"
 
     root = _resource_root()
     app_path = root / "src" / "garmin_tcx_ai" / "ui_streamlit.py"
@@ -34,6 +38,7 @@ def main() -> int:
         "streamlit",
         "run",
         str(app_path),
+        "--global.developmentMode=false",
         "--server.headless=true",
         "--server.port=8501",
         "--browser.gatherUsageStats=false",
