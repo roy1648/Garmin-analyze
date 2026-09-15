@@ -46,20 +46,22 @@ def test_cli_single_tcx_success(tmp_path: Path, capsys: pytest.CaptureFixture[st
 
     assert exit_code == 0
 
-    # Ensure output files exist
-    bundle_json = output_dir / "session_bundle" / "session_bundle.json"
-    bundle_md = output_dir / "session_bundle" / "session_bundle.md"
-    assert bundle_json.is_file()
-    assert bundle_md.is_file()
+    # Ensure the AI text files exist
+    assert (output_dir / "summary.txt").is_file()
+    assert (output_dir / "all_in_one.txt").is_file()
+    run_files = list((output_dir / "runs").glob("*.txt"))
+    assert len(run_files) == 1
 
-    # By default, atomic files are not written
+    # By default, legacy session bundle and atomic files are not written
     subdirs = [p.name for p in output_dir.iterdir() if p.is_dir()]
-    assert subdirs == ["session_bundle"]
+    assert subdirs == ["runs"]
 
-    # Verify stdout contains success summary and output path
+    # Verify stdout contains success summary and output paths
     captured = capsys.readouterr()
     assert "Successfully processed 1 activities." in captured.out
     assert str(output_dir.resolve()) in captured.out
+    assert "All-in-one text:" in captured.out
+    assert "Run text files: 1" in captured.out
 
 
 def test_cli_directory_success(tmp_path: Path) -> None:
@@ -91,8 +93,96 @@ def test_cli_directory_success(tmp_path: Path) -> None:
     )
 
     assert exit_code == 0
+    assert (output_dir / "summary.txt").is_file()
+    assert len(list((output_dir / "runs").glob("*.txt"))) == 2
+    assert not (output_dir / "session_bundle").exists()
+
+
+def test_cli_write_session_bundle_opt_in(tmp_path: Path) -> None:
+    """--write-session-bundle restores the legacy JSON/Markdown bundle."""
+    input_path = (
+        Path(__file__).parent / "fixtures" / "minimal_running.tcx"
+    )
+    output_dir = tmp_path / "output"
+
+    exit_code = main(
+        [
+            "bundle",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_dir),
+            "--write-session-bundle",
+        ]
+    )
+
+    assert exit_code == 0
     assert (output_dir / "session_bundle" / "session_bundle.json").is_file()
     assert (output_dir / "session_bundle" / "session_bundle.md").is_file()
+    assert (output_dir / "summary.txt").is_file()
+
+
+def test_cli_no_ai_text_flag(tmp_path: Path) -> None:
+    """--no-ai-text skips the txt outputs."""
+    input_path = (
+        Path(__file__).parent / "fixtures" / "minimal_running.tcx"
+    )
+    output_dir = tmp_path / "output"
+
+    exit_code = main(
+        [
+            "bundle",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_dir),
+            "--no-ai-text",
+            "--write-session-bundle",
+        ]
+    )
+
+    assert exit_code == 0
+    assert not (output_dir / "summary.txt").exists()
+    assert not (output_dir / "runs").exists()
+    assert (output_dir / "session_bundle" / "session_bundle.json").is_file()
+
+
+def test_cli_trackpoint_density_choices(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--trackpoint-density accepts compact/standard/detailed only."""
+    input_path = (
+        Path(__file__).parent / "fixtures" / "minimal_running.tcx"
+    )
+    output_dir = tmp_path / "output"
+
+    exit_code = main(
+        [
+            "bundle",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_dir),
+            "--trackpoint-density",
+            "compact",
+        ]
+    )
+    assert exit_code == 0
+
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "bundle",
+                "--input",
+                str(input_path),
+                "--output",
+                str(output_dir),
+                "--trackpoint-density",
+                "bogus",
+            ]
+        )
+    captured = capsys.readouterr()
+    assert "invalid choice" in captured.err
 
 
 def test_cli_write_atomic(tmp_path: Path) -> None:
@@ -221,6 +311,7 @@ def test_cli_session_bundle_safety(tmp_path: Path) -> None:
             str(input_path),
             "--output",
             str(output_dir),
+            "--write-session-bundle",
         ]
     )
 
@@ -304,6 +395,7 @@ def test_cli_without_coach_handoff(tmp_path: Path) -> None:
             str(input_path),
             "--output",
             str(output_dir),
+            "--write-session-bundle",
         ]
     )
 

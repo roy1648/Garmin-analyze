@@ -24,12 +24,81 @@ def test_run_bundle_single_tcx_success(tmp_path: Path) -> None:
     assert result.success is True
     assert result.activity_count == 1
     assert result.error_message is None
+    assert result.summary_txt_path == output_dir / "summary.txt"
+    assert result.summary_txt_path.is_file()
+    assert result.all_in_one_txt_path == output_dir / "all_in_one.txt"
+    assert result.all_in_one_txt_path.is_file()
+    assert len(result.run_txt_paths) == 1
+    assert result.run_txt_paths[0].is_file()
+    # Legacy outputs are opt-in.
+    assert result.session_bundle_json_path is None
+    assert result.session_bundle_markdown_path is None
+    assert result.coach_handoff_markdown_path is None
+    assert not result.atomic_artifact_paths
+    assert not (output_dir / "session_bundle").exists()
+
+
+def test_run_bundle_legacy_session_bundle_opt_in(tmp_path: Path) -> None:
+    """write_session_bundle=True restores the JSON/Markdown bundle."""
+    input_path = (
+        Path(__file__).parent / "fixtures" / "minimal_running.tcx"
+    )
+    output_dir = tmp_path / "output"
+
+    result = run_bundle(
+        BundleRunConfig(
+            input_path=input_path,
+            output_dir=output_dir,
+            write_session_bundle=True,
+        )
+    )
+
+    assert result.success is True
     assert result.session_bundle_json_path is not None
     assert result.session_bundle_json_path.is_file()
     assert result.session_bundle_markdown_path is not None
     assert result.session_bundle_markdown_path.is_file()
-    assert result.coach_handoff_markdown_path is None
-    assert not result.atomic_artifact_paths
+    assert result.summary_txt_path is not None
+
+
+def test_run_bundle_can_disable_ai_text(tmp_path: Path) -> None:
+    """write_ai_text=False writes no txt files."""
+    input_path = (
+        Path(__file__).parent / "fixtures" / "minimal_running.tcx"
+    )
+    output_dir = tmp_path / "output"
+
+    result = run_bundle(
+        BundleRunConfig(
+            input_path=input_path,
+            output_dir=output_dir,
+            write_ai_text=False,
+            write_session_bundle=True,
+        )
+    )
+
+    assert result.success is True
+    assert result.summary_txt_path is None
+    assert result.all_in_one_txt_path is None
+    assert result.run_txt_paths == []
+    assert not (output_dir / "runs").exists()
+
+
+def test_run_bundle_rejects_unknown_density(tmp_path: Path) -> None:
+    """An unknown trackpoint density is reported as an error."""
+    input_path = (
+        Path(__file__).parent / "fixtures" / "minimal_running.tcx"
+    )
+    result = run_bundle(
+        BundleRunConfig(
+            input_path=input_path,
+            output_dir=tmp_path / "output",
+            trackpoint_density="nope",
+        )
+    )
+
+    assert result.success is False
+    assert "trackpoint-density" in (result.error_message or "")
 
 
 def test_run_bundle_missing_input_returns_error(tmp_path: Path) -> None:
@@ -79,8 +148,8 @@ def test_run_bundle_directory_keeps_warnings_for_invalid_files(
     assert len(result.warning_messages) > 0
     # Warning message should mention invalid.tcx
     assert any("invalid.tcx" in msg for msg in result.warning_messages)
-    assert result.session_bundle_json_path is not None
-    assert result.session_bundle_json_path.is_file()
+    assert result.summary_txt_path is not None
+    assert result.summary_txt_path.is_file()
 
 
 def test_run_bundle_with_coach_handoff_returns_path(tmp_path: Path) -> None:
@@ -100,6 +169,9 @@ def test_run_bundle_with_coach_handoff_returns_path(tmp_path: Path) -> None:
     assert result.success is True
     assert result.coach_handoff_markdown_path is not None
     assert result.coach_handoff_markdown_path.is_file()
+    # Coach handoff implies the session bundle it embeds.
+    assert result.session_bundle_json_path is not None
+    assert result.session_bundle_json_path.is_file()
 
 
 def test_run_bundle_write_atomic_returns_artifact_paths(

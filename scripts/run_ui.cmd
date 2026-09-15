@@ -29,7 +29,8 @@ if errorlevel 1 (
 )
 
 echo [INFO] Starting Garmin TCX AI Local UI...
-uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
+echo [INFO] A free port is chosen automatically; the URL is printed below.
+uv run python -m garmin_tcx_ai.ui_exe_launcher
 set "EXIT_CODE=%ERRORLEVEL%"
 
 popd

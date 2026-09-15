@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "garmin-tcx-ai"
-version = "0.1.0"
+version = "0.2.0"
 description = "Personal Garmin TCX ETL and analysis scaffold."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -37,3 +37,8 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 79
 target-version = "py312"
+
+[tool.ruff.lint]
+# Keep the classic default rule set; newer ruff releases widened the
+# default selection and would flag unrelated pre-existing code.
+select = ["E4", "E7", "E9", "F"]

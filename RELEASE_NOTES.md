@@ -1,5 +1,46 @@
 # Release Notes
 
+## v0.2.0 — AI text export and simpler UI
+
+### Release metadata
+
+- **Version**: v0.2.0
+- **Python package version**: 0.2.0
+- **Windows EXE FileVersion/ProductVersion**: 0.2.0
+
+### Changed
+
+- New default output: plain-text files for AI use.
+  - `summary.txt`: period totals, Monday-to-Sunday weekly totals, daily
+    totals and one line per run.
+  - `runs/<date>_<time>_<km>km.txt`: one file per run with overview,
+    per-lap table and adaptively sampled trackpoints (short laps stay
+    dense so intervals survive; long laps are sparse).
+  - `all_in_one.txt`: summary, then every run's overview and lap table,
+    then an appendix with the sampled trackpoints, for one-shot
+    upload/paste.
+  - Weekly table has a 完整度 column marking partial weeks (based on the
+    requested download range when available, else on the run dates).
+  - Text outputs never contain GPS coordinates.
+- Legacy `session_bundle.json` / `session_bundle.md` / `coach_handoff.md`
+  are now opt-in (`--write-session-bundle`, `--write-coach-handoff`,
+  or the UI "舊版輸出" checkboxes).
+- New CLI options: `--trackpoint-density {compact,standard,detailed}`,
+  `--no-ai-text`, `--write-session-bundle`.
+- Streamlit UI redesigned as a three-step flow (source → output → run)
+  with quick date-range buttons, previews, copy and download buttons.
+- UI launcher picks a free port automatically (8501 when available),
+  prints the URL and opens the browser once the server responds.
+  `scripts\run_ui.cmd` now uses the same launcher.
+- Packaged EXE stores downloads and outputs under
+  `Documents\GarminTCX-AI\` so it works the same on any computer.
+
+### Manual validation status
+
+- Automated tests (`pytest`) verified and passing.
+- EXE build/smoke must be run manually on Windows using
+  `scripts\build_exe.manual.cmd` and `scripts\smoke_exe.manual.cmd`.
+
 ## v0.1.0 — Local Windows RC
 
 ### Release metadata
