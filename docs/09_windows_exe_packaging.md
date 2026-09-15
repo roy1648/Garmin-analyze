@@ -37,7 +37,18 @@ scripts\build_exe.manual.cmd
 scripts\smoke_exe.manual.cmd
 ```
 
-The smoke test validates basic CLI help commands (including `import-garminconnect --help`) and does NOT make real network requests to Garmin Connect.
+The smoke test does NOT make real network requests to Garmin Connect. It checks:
+
+- CLI `--help` and `import-garminconnect --help` (including `--trackpoint-density`, which catches an EXE built from outdated sources).
+- The default CLI run writes `summary.txt`, `all_in_one.txt` and `runs\*.txt`, and no `session_bundle` unless requested.
+- `--write-coach-handoff` still writes the legacy `session_bundle` and `coach_handoff.md`.
+- The UI EXE starts, listens on a port and answers HTTP 200 (`scripts\smoke_ui_exe.ps1`). A browser tab may open during this step.
+
+To test only the UI EXE:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\smoke_ui_exe.ps1
+```
 
 ## Clean
 
