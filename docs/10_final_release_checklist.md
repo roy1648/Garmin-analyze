@@ -1,12 +1,24 @@
 # Final Release Checklist
 
-本文件提供 Garmin TCX AI v0.1.0 釋出前、中、後的完整手動與自動檢驗指南。
+本文件提供 Garmin TCX AI 每次 Windows 版本釋出前、中、後的檢驗與發行步驟。
+以下以 `v0.2.0` 為例；發行新版本時，把所有 `0.2.0` 換成新版號即可。
+
+## 0. 版本號
+
+發行前確認以下四處版本號一致，並在 `RELEASE_NOTES.md` 最上方加入該版本的變更說明：
+
+- `pyproject.toml` 的 `version`
+- `src/garmin_tcx_ai/__init__.py` 的 `__version__`
+- `tests/test_package_import.py` 的版本斷言
+- `packaging/version_info.txt` 的 `filevers`、`prodvers`、`FileVersion`、`ProductVersion`
+
+---
 
 ## 1. Release 前準備
 
 請在 Windows 本機環境依序執行以下步驟：
 
-1. 切換至 `main` 分支並拉取最新代碼：
+1. 確認發行內容的 PR 已合併，切換至 `main` 並拉取最新代碼：
    ```powershell
    git checkout main
    git pull
@@ -20,118 +32,163 @@
    ```powershell
    uv run --with pytest pytest -q
    ```
-5. 執行 Ruff 靜態檢查：
+5. 執行 Ruff 靜態檢查（規則集已在 `pyproject.toml` 鎖定，與 CI 一致）：
    ```powershell
    uv run --with ruff ruff check src tests --no-cache
    ```
-6. 執行手動 Windows EXE 編譯（此腳本會調用 PyInstaller 打包 CLI 與 UI 套件）：
+6. 編譯 Windows EXE（PyInstaller 打包 CLI 與 UI，log 寫入 `.packaging-logs/`）：
    ```cmd
    scripts\build_exe.manual.cmd
    ```
-7. 執行 EXE 基礎冒煙測試：
+7. 執行 EXE 冒煙測試：
    ```cmd
    scripts\smoke_exe.manual.cmd
+   ```
+   腳本會自動驗證：
+   - CLI `--help` 與 `import-garminconnect --help`，並確認含 `--trackpoint-density`（用來擋下以舊原始碼打包的 EXE）。
+   - CLI 預設輸出 `summary.txt`、`all_in_one.txt`、`runs\*.txt`，且未要求時不產生 `session_bundle`。
+   - CLI `--write-coach-handoff` 仍產生舊版 `session_bundle.json / .md` 與 `coach_handoff.md`。
+   - UI EXE 能啟動、開始監聽 port 並回應 HTTP 200，之後自動關閉。這一步由
+     `scripts\smoke_ui_exe.ps1` 執行，瀏覽器可能會自動開一個分頁。
+   若只想單獨測 UI EXE：
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\smoke_ui_exe.ps1
    ```
 
 ---
 
 ## 2. EXE 手動驗收 (Manual Validation)
 
-編譯完成後，請手動進行以下功能驗證：
+冒煙測試通過後，建議再手動確認以下項目：
 
-- [ ] **CLI 執行檔存在**：確認 `dist\garmin-tcx-ai\garmin-tcx-ai.exe` 存在。
-- [ ] **UI 執行檔存在**：確認 `dist\garmin-tcx-ai-ui\garmin-tcx-ai-ui.exe` 存在。
-- [ ] **CLI 基礎功能正常**：執行 CLI EXE 轉換測試 fixtures 能成功產出 session bundle。
-- [ ] **CLI Garmin 導入指令正常**：執行以下指令可顯示說明文件且無錯誤：
-  ```cmd
-  dist\garmin-tcx-ai\garmin-tcx-ai.exe import-garminconnect --help
-  ```
-- [ ] **UI 啟動正常**：點兩下啟動 `dist\garmin-tcx-ai-ui\garmin-tcx-ai-ui.exe`，Streamlit 主控台與瀏覽器介面應成功開啟。
-- [ ] **UI 資料來源切換**：介面最上方能正常切換「本機 TCX 檔案 / 資料夾」與「Garmin Connect 下載」兩種模式。
-- [ ] **UI 本機模式正常**：在本機模式下，選擇或手動輸入包含 `tests/fixtures/minimal_running.tcx` 的路徑，能成功分析並在下方顯示預覽及提供複製。
-- [ ] **UI Garmin Connect 模式欄位**：切換至 Garmin Connect 下載模式，能正常顯示 Email、Password、日期範圍、活動類型與下載資料夾等欄位。
-- [ ] **UI Garmin Connect 下載驗證 (選用)**：若有真實帳號，可輸入並執行下載，確認資料能下載到 `data/raw/` 底下並自動分析。
-- [ ] **Windows Credential Manager 金鑰庫儲存驗證 (選用)**：在 Garmin 模式下，儲存/讀取/刪除密碼功能與 Windows Credential Manager 能正常連動。
+- [ ] **UI 啟動**：點兩下 `dist\garmin-tcx-ai-ui\garmin-tcx-ai-ui.exe`，主控台印出 `[INFO] Garmin TCX AI UI: http://localhost:PORT`，瀏覽器自動開啟。
+- [ ] **Port 被佔用時仍可啟動**：再開第二個 UI EXE，應改用另一個 port 並正常開啟，而不是失敗。
+- [ ] **本機模式**：選「本機 TCX 檔案 / 資料夾」並指定 `tests\fixtures`，按「開始產生 AI 文字檔」後成功顯示結果。
+- [ ] **預設輸出位置**：EXE 版預設輸出在 `文件\GarminTCX-AI\processed\` 底下。
+- [ ] **週表完整度**：`summary.txt` 的週跑量表有「完整度」欄，部分週標示「部分週（資料自 MM/DD 起）」或「部分週（截至 MM/DD）」。
+- [ ] **all_in_one 結構**：依序為摘要、每次跑步總覽與每圈表，最後是「附錄：軌跡取樣」。
+- [ ] **複製、下載與打開資料夾**：結果頁的複製按鈕、下載按鈕與「打開輸出資料夾」可正常運作。
+- [ ] **不含 GPS**：開啟任一 `runs\*.txt`，確認沒有經緯度座標。
+- [ ] **Garmin Connect 下載（選用）**：用真實帳號與「最近 14 天」下載，確認能產生文字檔，且部分週依選擇的日期範圍判斷。
+- [ ] **Windows 認證管理員（選用）**：勾選儲存密碼並下載成功後，重開 EXE 可自動使用已儲存密碼，「刪除已儲存密碼」可移除。
 
 ---
 
-## 3. Release Artifact 打包與安全性規則
+## 3. Release Artifact 打包
 
-### 3.1 打包打包指令
-本專案發行版本採用 `onedir` 目錄結構之 zip 壓縮檔。請在 PowerShell 執行以下命令打包發行檔：
+### 3.1 產出兩個 zip
+
+| 檔名 | 內容 | 對象 |
+|---|---|---|
+| `garmin-tcx-ai-v0.2.0-windows-ui.zip` | `garmin-tcx-ai-ui\`、README、LICENSE、NOTICE、RELEASE_NOTES | 大多數使用者 |
+| `garmin-tcx-ai-v0.2.0-windows-onedir.zip` | `garmin-tcx-ai\`、`garmin-tcx-ai-ui\`、上述文件與本 checklist | 需要 CLI 的使用者 |
+
+在專案根目錄的 PowerShell 執行：
 
 ```powershell
-# 建立存放 zip 檔的目錄
+$v = "0.2.0"
 New-Item -ItemType Directory -Force -Path release-artifacts | Out-Null
 
-# 壓縮編譯產物及必要授權、說明文件
-Compress-Archive `
+Compress-Archive -Force `
+  -Path dist\garmin-tcx-ai-ui, README.md, LICENSE, NOTICE.md, RELEASE_NOTES.md `
+  -DestinationPath "release-artifacts\garmin-tcx-ai-v$v-windows-ui.zip"
+
+Compress-Archive -Force `
   -Path dist\garmin-tcx-ai, dist\garmin-tcx-ai-ui, README.md, LICENSE, NOTICE.md, RELEASE_NOTES.md, docs\10_final_release_checklist.md `
-  -DestinationPath release-artifacts\garmin-tcx-ai-v0.1.0-windows-onedir.zip `
-  -Force
+  -DestinationPath "release-artifacts\garmin-tcx-ai-v$v-windows-onedir.zip"
 ```
 
-### 3.2 嚴格安全限制
+> [!WARNING]
+> 不要改用 `tar.exe -a -C . README.md ...` 的寫法。v0.2.0 發行時該寫法在 PowerShell 下
+> 會靜默漏掉 README、LICENSE 等根目錄文件，只留下警告訊息。MIT 授權要求散佈時附上 LICENSE。
+
+### 3.2 上傳前驗證 zip
+
+每個 zip 都必須通過以下檢查，才可以上傳：
+
+```powershell
+uv run python -c "import zipfile,sys; v=sys.argv[1]; [print(n, 'OK' if (z:=zipfile.ZipFile(f'release-artifacts/garmin-tcx-ai-v{v}-windows-{n}.zip')).testzip() is None and {'README.md','LICENSE','NOTICE.md','RELEASE_NOTES.md'} <= set(z.namelist()) and any(f.endswith('garmin-tcx-ai-ui.exe') for f in z.namelist()) else 'FAILED') for n in ('ui','onedir')]" $v
+```
+
+兩行都要顯示 `OK`。接著把 UI zip 解壓到一個全新的暫存資料夾，執行其中的
+`garmin-tcx-ai-ui\garmin-tcx-ai-ui.exe`，確認能開啟頁面，模擬下載者的實際使用情境。
+
+### 3.3 嚴格安全限制
+
 > [!IMPORTANT]
 > - `release-artifacts/` 目錄與產生的 `*.zip` 檔案**絕對不可 commit** 至 Git 儲存庫。
 > - `dist/`、`build/`、`.packaging-logs/`、`*.exe` 亦**絕對不可 commit**。
-> - zip 發行檔應手動上傳至 GitHub Release 頁面。
+> - 打包前確認 `dist\` 內沒有 `*.tcx`、`*.fit`、`*.gpx`、`.env` 或任何個人資料：
+>   ```powershell
+>   Get-ChildItem dist -Recurse -Include *.tcx,*.fit,*.gpx,.env* | Select-Object FullName
+>   ```
+>   此指令應無輸出。
 
 ---
 
-## 4. Git Tag 建立指引
+## 4. Git Tag
 
-建議的 Tag 名稱：`v0.1.0`
+建議的 Tag 名稱：`v0.2.0`
 
 ### 4.1 建立時機
-1. 當 PR #29 (Final Release Preparation) 合併至 `main` 分支後。
-2. 使用者在本機 `git checkout main` 並 `git pull` 同步最新狀態。
-3. 執行前述 Release 前準備及手動驗收，確認 Zip artifact 包裝無誤。
-4. 正式在本機打上 Tag 並推送到遠端。
+
+1. 發行內容的 PR 已合併至 `main`，且 `main` 上的 CI 通過。
+2. 已在本機 `git checkout main` 並 `git pull`。
+3. 已完成第 1 至 3 節，zip 驗證通過。
 
 > [!WARNING]
-> 如果 tag `v0.1.0` 已經在遠端或本機存在，請勿強行覆蓋（`--force`），先停下來確認版本狀態。
+> 如果該 tag 已經在遠端或本機存在，請勿強行覆蓋（`--force`），先停下來確認版本狀態。
 
 ### 4.2 建立指令
+
 ```powershell
 git checkout main
 git pull
 git status
-git tag -a v0.1.0 -m "Garmin TCX AI v0.1.0 local Windows release"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "Garmin TCX AI v0.2.0"
+git push origin v0.2.0
 ```
 
 ---
 
-## 5. GitHub Release 建議內容
+## 5. GitHub Release
 
-請在 GitHub Release 建立新 Release：
+### 5.1 建立 Release
 
-- **Tag**: `v0.1.0`
-- **Release Title**: `Garmin TCX AI v0.1.0`
-- **Artifact**: 上傳手動打包的 `garmin-tcx-ai-v0.1.0-windows-onedir.zip`
-- **Description 摘要範本**：
-  ```markdown
-  # Garmin TCX AI v0.1.0 - Local Windows Release
+先把 Release 說明寫入一個本機暫存檔（不要放在 repo 內），再執行：
 
-  個人 Garmin Connect 資料 ETL 與分析工具，支援 CLI 及 Streamlit 本機圖形化介面。
+```powershell
+$v = "0.2.0"
+gh release create "v$v" --verify-tag --latest `
+  --title "Garmin TCX AI v$v" `
+  --notes-file <release-notes.md 的路徑> `
+  "release-artifacts\garmin-tcx-ai-v$v-windows-ui.zip" `
+  "release-artifacts\garmin-tcx-ai-v$v-windows-onedir.zip"
+```
 
-  ## 核心功能
-  - CLI TCX bundle 彙整與分析
-  - Streamlit 本機 UI 介面，內建原生路徑選取器、複製與預覽
-  - Session bundle JSON / Markdown 及 AI 教練交接檔 (Coach handoff) 輸出
-  - Garmin Connect 選用本機匯入器 (CLI 與 UI 整合模式)
-  - 整合 Windows Credential Manager / 金鑰庫，安全儲存 Garmin 密碼
-  - Windows onedir EXE 二進位免裝打包發行
+若上傳後才發現 zip 有誤，修正後用 `--clobber` 替換，不要刪除 Release 重建：
 
-  ## 授權與版權
-  - MIT License
-  - Copyright (c) 2026 Jia-Long Chen
+```powershell
+gh release upload "v$v" --clobber "release-artifacts\garmin-tcx-ai-v$v-windows-ui.zip"
+```
 
-  ## 專案邊界與已知限制 (Non-goals)
-  - 本工具為 Local-only 應用，不包含雲端同步、外部資料庫、排程器。
-  - 無 AI API upload 與自動 coaching。
-  - 無醫學指標解讀、心率區間 / Garmin 區間推論、預計課表配對。
-  - 不提供 EXE 安裝檔 (Installer) 或單一 exe (onefile)。
-  - 真實 Garmin 登入及金鑰驗證屬本機手動選用功能。
+### 5.2 Release 說明應包含
+
+- **下載哪一個**：UI zip 給大多數人，onedir zip 附 CLI。
+- **使用步驟**：解壓縮 → 執行 `garmin-tcx-ai-ui\garmin-tcx-ai-ui.exe` → 選資料來源 → 開始產生 → 複製 `all_in_one.txt` 給 AI。
+- **保留整個資料夾**：只複製 `.exe` 出來會無法執行。
+- **SmartScreen 提示**：EXE 未經程式碼簽章，首次執行會出現「Windows 已保護您的電腦」，需點「其他資訊」→「仍要執行」。
+- **資料位置**：下載的 TCX 與輸出預設在 `文件\GarminTCX-AI\`。
+- **本版變更摘要**：取自 `RELEASE_NOTES.md`。
+- **限制**：Garmin Connect 下載使用非官方介面，可能因 Garmin 變更而暫時失效；本機 TCX 模式不受影響。僅支援 Windows。不提供訓練建議或醫療解讀。
+- **授權**：MIT License，Copyright (c) 2026 Jia-Long Chen。
+
+### 5.3 發行後確認
+
+- [ ] Release 標示為 Latest，非 Draft、非 Pre-release。
+- [ ] 兩個 zip 的遠端大小與本機檔案大小一致（兩邊的數字要完全相同）：
+  ```powershell
+  gh release view v0.2.0 --json assets -q '.assets[] | .name, .size'
+  Get-ChildItem release-artifacts\garmin-tcx-ai-v0.2.0-*.zip | Select-Object Name, Length
   ```
+- [ ] 從 Release 頁面實際下載 UI zip，解壓後可執行。
