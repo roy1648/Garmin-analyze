@@ -37,3 +37,8 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 79
 target-version = "py312"
+
+[tool.ruff.lint]
+# Keep the classic default rule set; newer ruff releases widened the
+# default selection and would flag unrelated pre-existing code.
+select = ["E4", "E7", "E9", "F"]
