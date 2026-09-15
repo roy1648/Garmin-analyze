@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import date
 from pathlib import Path
 
 from garmin_tcx_ai.ai_text import DENSITY_CHOICES
@@ -90,12 +91,28 @@ def _add_output_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _parse_date(value: str | None) -> date | None:
+    """Parse ``YYYY-MM-DD`` leniently; ``None`` when absent or invalid."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
 def _bundle_config(
     args: argparse.Namespace,
     input_path: Path,
 ) -> BundleRunConfig:
-    """Build a BundleRunConfig from parsed CLI arguments."""
+    """Build a BundleRunConfig from parsed CLI arguments.
+
+    For ``import-garminconnect`` the requested date range is passed on
+    so the summary can flag partial weeks.
+    """
     return BundleRunConfig(
+        coverage_start=_parse_date(getattr(args, "start_date", None)),
+        coverage_end=_parse_date(getattr(args, "end_date", None)),
         input_path=input_path,
         output_dir=Path(args.output),
         gps_policy=args.gps_policy,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -189,8 +189,8 @@ def test_summary_weekly_totals_monday_to_sunday() -> None:
         line for line in text.splitlines() if line.startswith("2026-W")
     ]
     assert len(week_rows) == 2
-    assert week_rows[0].startswith("2026-W27 | 06/29~07/05 | 1 | 2.00")
-    assert week_rows[1].startswith("2026-W28 | 07/06~07/12 | 1 | 3.00")
+    assert week_rows[0].startswith("2026-W27 | 06/29~07/05 | 部分週（資料自 07/05 起） | 1 | 2.00")
+    assert week_rows[1].startswith("2026-W28 | 07/06~07/12 | 部分週（截至 07/06） | 1 | 3.00")
 
 
 def test_summary_fills_empty_weeks_between_runs() -> None:
@@ -206,7 +206,7 @@ def test_summary_fills_empty_weeks_between_runs() -> None:
         line for line in text.splitlines() if line.startswith("2026-W")
     ]
     assert len(week_rows) == 3
-    assert week_rows[1].startswith("2026-W27 | 06/29~07/05 | 0 | 0 | 0:00")
+    assert week_rows[1].startswith("2026-W27 | 06/29~07/05 | 完整週 | 0 | 0 | 0:00")
 
 
 def test_summary_handles_missing_start_time() -> None:
@@ -244,9 +244,61 @@ def test_all_in_one_contains_summary_and_every_run(tmp_path: Path) -> None:
     paths = ai_text.write_ai_text_outputs(activities, tmp_path)
     all_text = paths.all_in_one_path.read_text(encoding="utf-8")
     assert paths.summary_path.read_text(encoding="utf-8") in all_text
-    for run_path in paths.run_paths:
-        assert run_path.read_text(encoding="utf-8") in all_text
     assert "每次跑步記錄 (共 2 次)" in all_text
+    # Every run's overview/lap part and trackpoint part are both present.
+    for run_path in paths.run_paths:
+        run_text = run_path.read_text(encoding="utf-8")
+        main, tracks = run_text.split("\n--- 軌跡取樣 ---\n")
+        assert main in all_text
+        assert tracks.split("\n\n備註")[0] in all_text
+    # Trackpoints live in the appendix after all run overviews.
+    appendix = all_text.index("附錄：軌跡取樣")
+    assert all_text.index("每次跑步記錄") < appendix
+    assert all_text.count("--- 軌跡取樣 ---") == 2
+    assert all(
+        pos > appendix
+        for pos in _all_positions(all_text, "--- 軌跡取樣 ---")
+    )
+    assert all(
+        pos < appendix for pos in _all_positions(all_text, "--- 每圈 (Lap) ---")
+    )
+
+
+def _all_positions(text: str, needle: str) -> list[int]:
+    positions = []
+    start = 0
+    while (pos := text.find(needle, start)) != -1:
+        positions.append(pos)
+        start = pos + 1
+    return positions
+
+
+def test_weekly_table_marks_partial_weeks_from_coverage() -> None:
+    """Weeks not fully inside the requested range are flagged."""
+    activities = [
+        _synthetic(datetime(2026, 9, 3, 2, 0, tzinfo=UTC), [(600, 2000.0)]),
+        _synthetic(datetime(2026, 9, 9, 2, 0, tzinfo=UTC), [(600, 2000.0)]),
+        _synthetic(datetime(2026, 9, 14, 2, 0, tzinfo=UTC), [(600, 2000.0)]),
+    ]
+    text = ai_text.render_summary_text(
+        activities, TAIPEI, "Asia/Taipei", (date(2026, 9, 3), date(2026, 9, 15))
+    )
+    assert "資料範圍: 2026-09-03 ~ 2026-09-15 (指定/下載範圍" in text
+    rows = [line for line in text.splitlines() if line.startswith("2026-W")]
+    assert rows[0].startswith("2026-W36 | 08/31~09/06 | 部分週（資料自 09/03 起）")
+    assert rows[1].startswith("2026-W37 | 09/07~09/13 | 完整週")
+    assert rows[2].startswith("2026-W38 | 09/14~09/20 | 部分週（截至 09/15）")
+
+
+def test_weekly_table_partial_weeks_without_coverage_use_run_span() -> None:
+    """Without a requested range, the span of the runs decides."""
+    activities = [
+        _synthetic(datetime(2026, 9, 9, 2, 0, tzinfo=UTC), [(600, 2000.0)]),
+    ]
+    text = ai_text.render_summary_text(activities, TAIPEI, "Asia/Taipei")
+    rows = [line for line in text.splitlines() if line.startswith("2026-W")]
+    assert len(rows) == 1
+    assert "部分週（資料自 09/09 起，截至 09/09）" in rows[0]
 
 
 def test_segment_pace_reports_pause_when_not_moving() -> None:

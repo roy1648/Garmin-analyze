@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -39,6 +40,8 @@ class BundleRunConfig:
     write_ai_text: bool = True
     write_session_bundle: bool = False
     trackpoint_density: str = "standard"
+    coverage_start: date | None = None
+    coverage_end: date | None = None
 
 
 @dataclass(frozen=True)
@@ -226,6 +229,12 @@ def run_bundle(config: BundleRunConfig) -> BundleRunResult:
                 output_dir,
                 timezone_name=config.timezone_name,
                 density=config.trackpoint_density,
+                coverage=(
+                    (config.coverage_start, config.coverage_end)
+                    if config.coverage_start is not None
+                    and config.coverage_end is not None
+                    else None
+                ),
             )
             summary_txt = text_paths.summary_path
             all_in_one_txt = text_paths.all_in_one_path

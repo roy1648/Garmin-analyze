@@ -16,7 +16,11 @@
   - `runs/<date>_<time>_<km>km.txt`: one file per run with overview,
     per-lap table and adaptively sampled trackpoints (short laps stay
     dense so intervals survive; long laps are sparse).
-  - `all_in_one.txt`: summary plus every run, for one-shot upload/paste.
+  - `all_in_one.txt`: summary, then every run's overview and lap table,
+    then an appendix with the sampled trackpoints, for one-shot
+    upload/paste.
+  - Weekly table has a 完整度 column marking partial weeks (based on the
+    requested download range when available, else on the run dates).
   - Text outputs never contain GPS coordinates.
 - Legacy `session_bundle.json` / `session_bundle.md` / `coach_handoff.md`
   are now opt-in (`--write-session-bundle`, `--write-coach-handoff`,

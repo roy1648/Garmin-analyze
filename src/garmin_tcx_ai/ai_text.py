@@ -45,6 +45,10 @@ PAUSE_PACE_SECONDS_PER_KM = 1500.0
 
 _WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"]
 _RULE = "=" * 60
+_ACTIVITY_NOTE = (
+    "備註: 不含 GPS 座標。步頻為 Garmin RunCadence 原始值，"
+    "未做 x2 換算。配速 = 時間 / 距離，未做任何訓練解讀。"
+)
 
 
 @dataclass(frozen=True)
@@ -66,6 +70,7 @@ def write_ai_text_outputs(
     output_dir: Path,
     timezone_name: str = "Asia/Taipei",
     density: str = "standard",
+    coverage: tuple[date, date] | None = None,
 ) -> AiTextPaths:
     """Write summary, per-run and all-in-one text files.
 
@@ -75,6 +80,9 @@ def write_ai_text_outputs(
             ``all_in_one.txt`` and the ``runs/`` sub-folder.
         timezone_name: IANA zone used for local dates and times.
         density: One of :data:`DENSITY_CHOICES`.
+        coverage: Optional ``(first_day, last_day)`` the data was
+            requested for (for example the download date range). Used
+            to flag partial weeks. Defaults to the span of the runs.
 
     Returns:
         The written paths.
@@ -88,24 +96,27 @@ def write_ai_text_outputs(
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     run_paths: list[Path] = []
-    run_texts: list[str] = []
+    sections: list[tuple[str, str, str]] = []
     used_names: set[str] = set()
     for index, activity in enumerate(ordered, start=1):
-        text = render_activity_text(
+        main, tracks = render_activity_sections(
             activity, zone, timezone_name, density
         )
+        text = _join_activity(main, tracks)
         stem = _run_file_stem(activity, zone, index)
         name = _unique_name(stem, used_names)
         target = runs_dir / f"{name}.txt"
         target.write_text(text, encoding="utf-8", newline="\n")
         run_paths.append(target)
-        run_texts.append(text)
+        sections.append((_activity_title(activity, zone), main, tracks))
 
-    summary_text = render_summary_text(ordered, zone, timezone_name)
+    summary_text = render_summary_text(
+        ordered, zone, timezone_name, coverage
+    )
     summary_path = Path(output_dir) / SUMMARY_FILE_NAME
     summary_path.write_text(summary_text, encoding="utf-8", newline="\n")
 
-    all_text = render_all_in_one_text(summary_text, run_texts)
+    all_text = render_all_in_one_text(summary_text, sections)
     all_path = Path(output_dir) / ALL_IN_ONE_FILE_NAME
     all_path.write_text(all_text, encoding="utf-8", newline="\n")
 
@@ -123,10 +134,37 @@ def render_activity_text(
     density: str = "standard",
 ) -> str:
     """Render one activity as plain text without GPS coordinates."""
+    main, tracks = render_activity_sections(
+        activity, zone, timezone_name, density
+    )
+    return _join_activity(main, tracks)
+
+
+def _join_activity(main: str, tracks: str) -> str:
+    """Combine the overview/lap part and the trackpoint part."""
+    return f"{main}\n\n{tracks}\n\n{_ACTIVITY_NOTE}\n"
+
+
+def _activity_title(activity: ParsedActivity, zone: tzinfo) -> str:
+    """Return ``跑步記錄: <date> (週X) HH:MM 開始``."""
+    local_start = _local(activity.activity.start_time, zone)
+    title_time = local_start.strftime("%H:%M") if local_start else "--:--"
+    return f"跑步記錄: {_date_with_weekday(local_start)} {title_time} 開始"
+
+
+def render_activity_sections(
+    activity: ParsedActivity,
+    zone: tzinfo,
+    timezone_name: str,
+    density: str = "standard",
+) -> tuple[str, str]:
+    """Render an activity as ``(overview_and_laps, trackpoint_table)``.
+
+    The first part is what a weekly review needs; the second part is
+    the sampled trackpoint table for drilling into one run.
+    """
     act = activity.activity
     local_start = _local(act.start_time, zone)
-    title_date = _date_with_weekday(local_start)
-    title_time = local_start.strftime("%H:%M") if local_start else "--:--"
     hr_values = _values(activity.trackpoints, "heart_rate_bpm")
     cad_values = _values(activity.trackpoints, "run_cadence_spm")
     pow_values = _values(activity.trackpoints, "power_watts")
@@ -142,7 +180,7 @@ def render_activity_text(
 
     lines = [
         _RULE,
-        f"跑步記錄: {title_date} {title_time} 開始",
+        _activity_title(activity, zone),
         _RULE,
         f"來源檔案: {Path(activity.source.file_name).name}",
         f"運動類型: {act.sport or '未知'}",
@@ -176,28 +214,22 @@ def render_activity_text(
         "--- 每圈 (Lap) ---",
     ]
     lines.extend(_lap_table(activity, zone))
-    lines.append("")
-    lines.append("--- 軌跡取樣 ---")
-    lines.extend(_trackpoint_table(activity, density))
-    lines.extend(
-        [
-            "",
-            (
-                "備註: 不含 GPS 座標。步頻為 Garmin RunCadence 原始值，"
-                "未做 x2 換算。配速 = 時間 / 距離，未做任何訓練解讀。"
-            ),
-            "",
-        ]
-    )
-    return "\n".join(lines)
+    tracks = ["--- 軌跡取樣 ---", *_trackpoint_table(activity, density)]
+    return "\n".join(lines), "\n".join(tracks)
 
 
 def render_summary_text(
     activities: list[ParsedActivity],
     zone: tzinfo,
     timezone_name: str,
+    coverage: tuple[date, date] | None = None,
 ) -> str:
-    """Render period, weekly, daily and per-run totals as plain text."""
+    """Render period, weekly, daily and per-run totals as plain text.
+
+    ``coverage`` is the requested date range; when omitted the span of
+    the dated runs is used. Weeks that extend beyond it are marked as
+    partial in the weekly table.
+    """
     ordered = sorted(activities, key=_sort_key)
     dated = [
         (_local(item.activity.start_time, zone), item) for item in ordered
@@ -206,11 +238,18 @@ def render_summary_text(
     unknown = [item for dt, item in dated if dt is None]
 
     lines = [_RULE, "跑步訓練摘要", _RULE]
-    if known:
-        first_day = known[0][0].date().isoformat()
-        last_day = known[-1][0].date().isoformat()
+    span: tuple[date, date] | None = None
+    if coverage is not None:
+        span = coverage
         lines.append(
-            f"資料範圍: {first_day} ~ {last_day} (本地日期, {timezone_name})"
+            f"資料範圍: {span[0].isoformat()} ~ {span[1].isoformat()}"
+            f" (指定/下載範圍, 本地日期, {timezone_name})"
+        )
+    elif known:
+        span = (known[0][0].date(), known[-1][0].date())
+        lines.append(
+            f"資料範圍: {span[0].isoformat()} ~ {span[1].isoformat()}"
+            f" (依跑步日期, 本地日期, {timezone_name})"
         )
     else:
         lines.append(f"資料範圍: 無可用日期 ({timezone_name})")
@@ -221,7 +260,7 @@ def render_summary_text(
         )
 
     lines.extend(["", "--- 週跑量 (週一至週日) ---"])
-    lines.extend(_weekly_table(known))
+    lines.extend(_weekly_table(known, span))
     lines.extend(["", "--- 每日 ---"])
     lines.extend(_daily_table(known))
     lines.extend(["", "--- 每次跑步 ---"])
@@ -233,6 +272,7 @@ def render_summary_text(
                 "說明: 平均配速 = 總時間 / 總距離。平均心率為各次跑步"
                 "平均心率的時間加權值。步頻為 Garmin RunCadence 原始值，"
                 "未做 x2 換算。不含 GPS 座標，未做任何訓練解讀。"
+                "週表「完整度」為部分週時，該週跑量不可與完整週直接比較。"
             ),
             "",
         ]
@@ -242,22 +282,44 @@ def render_summary_text(
 
 def render_all_in_one_text(
     summary_text: str,
-    run_texts: list[str],
+    sections: list[tuple[str, str, str]],
 ) -> str:
-    """Concatenate the summary and every run text into one document."""
+    """Build the single-document export.
+
+    Order: summary, then every run's overview and lap table, then an
+    appendix with each run's sampled trackpoints. ``sections`` holds
+    ``(title, overview_and_laps, trackpoint_table)`` per run.
+    """
     parts = [
         (
-            "本檔案包含整段期間的跑步摘要與每一次跑步的記錄，"
+            "本檔案包含整段期間的跑步摘要、每一次跑步的總覽與每圈資料，"
+            "最後附錄為各次跑步的軌跡取樣（需要細看某一次時再用）。"
             "可整份提供給 AI 進行課表規劃。"
         ),
         "",
         summary_text,
     ]
-    if run_texts:
+    if sections:
         parts.extend(
-            ["", _RULE, f"每次跑步記錄 (共 {len(run_texts)} 次)", ""]
+            ["", _RULE, f"每次跑步記錄 (共 {len(sections)} 次)", ""]
         )
-        parts.extend(run_texts)
+        for _, main, _ in sections:
+            parts.extend([main, "", _ACTIVITY_NOTE, ""])
+        parts.extend(
+            [
+                "",
+                _RULE,
+                "附錄：軌跡取樣（每次跑步的配速/心率/步頻隨時間變化）",
+                _RULE,
+                (
+                    "日常週判讀不需要讀這一段；要查某次最高心率、間歇掉速"
+                    "或步頻下降發生在哪裡時再往下看。"
+                ),
+                "",
+            ]
+        )
+        for title, _, tracks in sections:
+            parts.extend([f"### {title}", tracks, ""])
     return "\n".join(parts)
 
 
@@ -473,21 +535,48 @@ def _totals_lines(activities: list[ParsedActivity]) -> list[str]:
     ]
 
 
+def _week_completeness(
+    week_start: date,
+    span: tuple[date, date],
+) -> str:
+    """Describe whether *span* covers the whole Monday-to-Sunday week."""
+    week_end = week_start + timedelta(days=6)
+    first_day, last_day = span
+    starts_late = first_day > week_start
+    ends_early = last_day < week_end
+    if starts_late and ends_early:
+        return (
+            f"部分週（資料自 {first_day.strftime('%m/%d')} 起，"
+            f"截至 {last_day.strftime('%m/%d')}）"
+        )
+    if starts_late:
+        return f"部分週（資料自 {first_day.strftime('%m/%d')} 起）"
+    if ends_early:
+        return f"部分週（截至 {last_day.strftime('%m/%d')}）"
+    return "完整週"
+
+
 def _weekly_table(
     known: list[tuple[datetime, ParsedActivity]],
+    span: tuple[date, date] | None,
 ) -> list[str]:
-    """Render Monday-to-Sunday weekly totals covering the whole range."""
-    if not known:
+    """Render Monday-to-Sunday weekly totals covering *span*.
+
+    Every week touching *span* is listed, weeks without runs included.
+    A week that *span* does not fully cover is marked as partial so its
+    volume is not mistaken for a full week.
+    """
+    if span is None:
         return ["無可用日期。"]
     by_week: dict[date, list[ParsedActivity]] = defaultdict(list)
     for dt, item in known:
         by_week[_week_start(dt.date())].append(item)
-    first = _week_start(known[0][0].date())
-    last = _week_start(known[-1][0].date())
+    first = _week_start(span[0])
+    last = _week_start(span[1])
     lines = [
         (
-            "週 | 起訖 | 次數 | 距離(km) | 時間 | 平均配速 | 平均心率"
-            " | 最長單次(km)"
+            "週 | 起訖 | 完整度 | 次數 | 距離(km) | 時間 | 平均配速"
+            " | 平均心率 | 最長單次(km)"
         )
     ]
     current = first
@@ -507,6 +596,7 @@ def _weekly_table(
                 [
                     f"{iso_year}-W{iso_week:02d}",
                     f"{current.strftime('%m/%d')}~{end.strftime('%m/%d')}",
+                    _week_completeness(current, span),
                     str(len(items)),
                     _cell_km(stats["meters"]) if items else "0",
                     _fmt_duration(stats["seconds"]) if items else "0:00",
@@ -838,6 +928,7 @@ __all__ = [
     "RUNS_DIR_NAME",
     "SUMMARY_FILE_NAME",
     "AiTextPaths",
+    "render_activity_sections",
     "render_activity_text",
     "render_all_in_one_text",
     "render_summary_text",

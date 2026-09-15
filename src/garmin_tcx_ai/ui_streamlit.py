@@ -442,9 +442,15 @@ def _render_output_and_advanced(source_mode: str) -> dict:
     }
 
 
-def _bundle_config(input_path: Path, settings: dict) -> BundleRunConfig:
+def _bundle_config(
+    input_path: Path,
+    settings: dict,
+    coverage: tuple[date, date] | None = None,
+) -> BundleRunConfig:
     """Build the pipeline config from UI settings."""
     return BundleRunConfig(
+        coverage_start=coverage[0] if coverage else None,
+        coverage_end=coverage[1] if coverage else None,
         input_path=input_path,
         output_dir=normalize_output_path(settings["output_dir_str"]),
         gps_policy=settings["gps_policy"],
@@ -532,7 +538,11 @@ def _run_garmin(garmin: dict, settings: dict) -> None:
         st.rerun()
 
     try:
-        config = _bundle_config(import_result.download_dir, settings)
+        config = _bundle_config(
+            import_result.download_dir,
+            settings,
+            (garmin["start_date"], garmin["end_date"]),
+        )
         with st.spinner("產生文字檔中..."):
             result = run_bundle(config)
     except Exception as exc:  # noqa: BLE001 - surface any error in UI
