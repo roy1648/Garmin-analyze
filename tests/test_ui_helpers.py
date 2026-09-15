@@ -385,6 +385,7 @@ def test_select_directory_dialog_tk_failure(monkeypatch) -> None:
 def test_validate_garmin_date_range_valid() -> None:
     """Test validate_garmin_date_range with valid input inputs."""
     from datetime import date
+
     from garmin_tcx_ai.ui_helpers import validate_garmin_date_range
 
     res = validate_garmin_date_range(date(2026, 7, 1), date(2026, 7, 8))
@@ -404,6 +405,7 @@ def test_validate_garmin_date_range_missing() -> None:
 def test_validate_garmin_date_range_start_after_end() -> None:
     """Test validate_garmin_date_range with start date after end date."""
     from datetime import date
+
     from garmin_tcx_ai.ui_helpers import validate_garmin_date_range
 
     res = validate_garmin_date_range(date(2026, 7, 8), date(2026, 7, 1))
@@ -414,6 +416,7 @@ def test_validate_garmin_date_range_start_after_end() -> None:
 def test_validate_garmin_date_range_exceeds_max_days() -> None:
     """Test validate_garmin_date_range with range exceeding 366 days."""
     from datetime import date
+
     from garmin_tcx_ai.ui_helpers import validate_garmin_date_range
 
     res = validate_garmin_date_range(date(2025, 1, 1), date(2026, 1, 3))
@@ -424,8 +427,28 @@ def test_validate_garmin_date_range_exceeds_max_days() -> None:
 def test_default_garmin_download_dir() -> None:
     """Test default_garmin_download_dir returns the expected Path."""
     from pathlib import Path
+
     from garmin_tcx_ai.ui_helpers import default_garmin_download_dir
 
     res = default_garmin_download_dir()
     assert res == Path("data/raw/garminconnect_ui")
 
+
+
+def test_app_data_root_uses_documents_when_frozen(monkeypatch) -> None:
+    """A packaged EXE stores data under the user's Documents folder."""
+    from pathlib import Path as _Path
+
+    from garmin_tcx_ai import ui_helpers
+
+    monkeypatch.setattr(ui_helpers, "is_frozen", lambda: True)
+    monkeypatch.setattr(_Path, "home", classmethod(lambda cls: cls("H:/u")))
+
+    root = ui_helpers.app_data_root()
+
+    assert root == _Path("H:/u") / "Documents" / "GarminTCX-AI"
+    assert ui_helpers.default_output_dir().parent == root / "processed"
+    assert (
+        ui_helpers.default_garmin_download_dir()
+        == root / "raw" / "garminconnect_ui"
+    )

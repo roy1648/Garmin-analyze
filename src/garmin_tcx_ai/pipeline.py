@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from garmin_tcx_ai.ai_text import DENSITY_CHOICES, write_ai_text_outputs
 from garmin_tcx_ai.exporters import (
     safe_activity_id,
     write_activity_json,
@@ -35,6 +36,9 @@ class BundleRunConfig:
     max_gap_minutes: int = 30
     write_atomic: bool = False
     write_coach_handoff: bool = False
+    write_ai_text: bool = True
+    write_session_bundle: bool = False
+    trackpoint_density: str = "standard"
 
 
 @dataclass(frozen=True)
@@ -46,6 +50,9 @@ class BundleRunResult:
     output_dir: Path
     warning_messages: list[str]
     error_message: str | None = None
+    summary_txt_path: Path | None = None
+    all_in_one_txt_path: Path | None = None
+    run_txt_paths: list[Path] = field(default_factory=list)
     session_bundle_json_path: Path | None = None
     session_bundle_markdown_path: Path | None = None
     coach_handoff_markdown_path: Path | None = None
@@ -127,6 +134,18 @@ def run_bundle(config: BundleRunConfig) -> BundleRunResult:
             ),
         )
 
+    if config.trackpoint_density not in DENSITY_CHOICES:
+        return BundleRunResult(
+            success=False,
+            activity_count=0,
+            output_dir=output_dir,
+            warning_messages=warning_messages,
+            error_message=(
+                "Error: trackpoint-density must be one of "
+                f"{', '.join(DENSITY_CHOICES)}"
+            ),
+        )
+
     # 5. Parse and normalize activities
     normalized_activities = []
     is_dir = input_path.is_dir()
@@ -196,21 +215,34 @@ def run_bundle(config: BundleRunConfig) -> BundleRunResult:
     # 6. Ensure output directory is created
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 7. Write session bundle
+    # 7. Write AI text files and (optionally) the legacy session bundle
+    sb_json = sb_md = ch_md = None
+    summary_txt = all_in_one_txt = None
+    run_txts: list[Path] = []
     try:
-        sb_json = write_session_bundle_json(
-            normalized_activities,
-            output_dir,
-            max_gap_minutes=config.max_gap_minutes,
-            timezone_name=config.timezone_name,
-        )
-        sb_md = write_session_bundle_markdown(
-            normalized_activities,
-            output_dir,
-            max_gap_minutes=config.max_gap_minutes,
-            timezone_name=config.timezone_name,
-        )
-        ch_md = None
+        if config.write_ai_text:
+            text_paths = write_ai_text_outputs(
+                normalized_activities,
+                output_dir,
+                timezone_name=config.timezone_name,
+                density=config.trackpoint_density,
+            )
+            summary_txt = text_paths.summary_path
+            all_in_one_txt = text_paths.all_in_one_path
+            run_txts = list(text_paths.run_paths)
+        if config.write_session_bundle or config.write_coach_handoff:
+            sb_json = write_session_bundle_json(
+                normalized_activities,
+                output_dir,
+                max_gap_minutes=config.max_gap_minutes,
+                timezone_name=config.timezone_name,
+            )
+            sb_md = write_session_bundle_markdown(
+                normalized_activities,
+                output_dir,
+                max_gap_minutes=config.max_gap_minutes,
+                timezone_name=config.timezone_name,
+            )
         if config.write_coach_handoff:
             ch_md = write_coach_handoff_markdown(
                 normalized_activities,
@@ -277,6 +309,9 @@ def run_bundle(config: BundleRunConfig) -> BundleRunResult:
         activity_count=len(normalized_activities),
         output_dir=output_dir,
         warning_messages=warning_messages,
+        summary_txt_path=summary_txt,
+        all_in_one_txt_path=all_in_one_txt,
+        run_txt_paths=run_txts,
         session_bundle_json_path=sb_json,
         session_bundle_markdown_path=sb_md,
         coach_handoff_markdown_path=ch_md,

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-import garmin_tcx_ai.cli as cli
+from garmin_tcx_ai import cli
 from garmin_tcx_ai.importers import GarminConnectImportResult
 from garmin_tcx_ai.pipeline import BundleRunResult
 
@@ -35,8 +35,8 @@ def test_import_garminconnect_success_runs_importer_then_pipeline(
 
     def fake_bundle(config: object) -> BundleRunResult:
         calls.append(config)
-        assert getattr(config, "input_path") == download_dir
-        assert getattr(config, "output_dir") == output_dir
+        assert config.input_path == download_dir
+        assert config.output_dir == output_dir
         return BundleRunResult(
             success=True,
             activity_count=2,
@@ -188,4 +188,5 @@ def test_existing_bundle_command_still_works(tmp_path: Path) -> None:
     )
 
     assert exit_code == 0
-    assert (output_dir / "session_bundle" / "session_bundle.json").is_file()
+    assert (output_dir / "summary.txt").is_file()
+    assert (output_dir / "all_in_one.txt").is_file()

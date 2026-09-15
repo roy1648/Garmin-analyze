@@ -37,4 +37,4 @@ __all__ = [
     "write_trackpoints_csv",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

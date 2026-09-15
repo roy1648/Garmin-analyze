@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime
 import importlib
 import os
-from pathlib import Path
 import subprocess
 import sys
 import threading
+from dataclasses import dataclass
+from datetime import date, datetime
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -120,6 +120,23 @@ _default_dir_counter = 0
 _default_dir_lock = threading.Lock()
 
 
+def is_frozen() -> bool:
+    """Return True when running inside a PyInstaller bundle."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def app_data_root() -> Path:
+    """Return the base folder for downloads and outputs.
+
+    From source the repository-relative ``data`` folder is used (ignored
+    by Git). From a packaged EXE the user's Documents folder is used so
+    outputs land in a stable, discoverable place on any computer.
+    """
+    if is_frozen():
+        return Path.home() / "Documents" / "GarminTCX-AI"
+    return Path("data")
+
+
 def default_output_dir(base_dir: Path | None = None) -> Path:
     """Return a timestamped default UI output directory.
 
@@ -130,7 +147,7 @@ def default_output_dir(base_dir: Path | None = None) -> Path:
         A timestamped Path under the base directory.
     """
     global _default_dir_counter
-    root = base_dir or Path("data") / "processed"
+    root = base_dir or app_data_root() / "processed"
     now = datetime.now()
     with _default_dir_lock:
         _default_dir_counter += 1
@@ -446,4 +463,4 @@ def default_garmin_download_dir() -> Path:
     Returns:
         A Path object.
     """
-    return Path("data/raw/garminconnect_ui")
+    return app_data_root() / "raw" / "garminconnect_ui"

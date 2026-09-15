@@ -115,20 +115,44 @@ uv run python -m ruff check src tests --no-cache
 
 ### 1. CLI 工具使用方式
 
-使用 `garmin-tcx-ai` 命令執行轉換：
+使用 `garmin-tcx-ai` 命令執行轉換，預設輸出 AI 好讀的純文字檔：
 
 ```powershell
-# 範例：將 tests/fixtures 中的 TCX 檔案轉換為 session bundle
-uv run garmin-tcx-ai bundle --input tests/fixtures --output data/processed/smoke_cli --write-coach-handoff
+# 範例：將 tests/fixtures 中的 TCX 檔案轉成 summary.txt / all_in_one.txt / runs/*.txt
+uv run garmin-tcx-ai bundle --input tests/fixtures --output data/processed/smoke_cli
 ```
+
+輸出資料夾結構：
+
+```text
+<output>/
+  summary.txt        # 期間總計、週跑量（週一到週日）、每日、每次跑步一行
+  all_in_one.txt     # summary + 每次跑步記錄，整份餵給 AI
+  runs/
+    2026-07-02_1958_7.18km.txt   # 每次跑步：總覽、每圈表、軌跡取樣
+```
+
+常用選項：
+
+- `--trackpoint-density {compact,standard,detailed}`：軌跡取樣密度。
+  短圈（≤3 分鐘，例如間歇）自動保留較密的軌跡點，長圈較疏。
+- `--write-session-bundle`、`--write-coach-handoff`、`--write-atomic`：
+  額外產生舊版 session bundle / coach handoff / 除錯檔（預設不產生）。
+- `--no-ai-text`：不產生 txt。
+
+txt 文字檔一律不含 GPS 座標；`--gps-policy` 只影響舊版輸出與除錯檔。
 
 ### 2. Streamlit 本機 UI 使用方式
 
-執行以下指令啟動本機網頁操作介面：
+執行以下指令啟動本機網頁操作介面（自動挑選空閒 port 並開啟瀏覽器）：
 
 ```powershell
-uv run streamlit run src/garmin_tcx_ai/ui_streamlit.py
+uv run python -m garmin_tcx_ai.ui_exe_launcher
 ```
+
+或在 Windows 直接執行 `scripts\run_ui.cmd`。UI 分三步：選資料來源
+（Garmin Connect 下載或本機 TCX）→ 選輸出資料夾 → 開始產生。結果頁可預覽、
+複製或下載 `all_in_one.txt` 與 `summary.txt`。
 
 ## 模組層級操作範例
 
